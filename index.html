@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>フキダシのキノコたち</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300;400;500;700&family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F8F2E4;
+    --card:#FFFFFF;
+    --green:#6B8F71;
+    --green-dark:#42604A;
+    --green-pale:#E4EEE1;
+    --orange:#E9A868;
+    --yellow:#EAC94F;
+    --purple:#C6AEE0;
+    --text:#3E3A32;
+    --text-soft:#83796A;
+    --line:#EAE1CD;
+    --danger:#C97A6D;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--text);
+    font-family:'Zen Maru Gothic','Klee One',sans-serif;
+    font-weight:400;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    max-width:430px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--cream);
+    position:relative;
+    padding-bottom:36px;
+  }
+  .page{
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:16px 18px 10px 18px;
+    position:sticky;
+    top:0;
+    background:var(--cream);
+    z-index:5;
+  }
+  .backbtn{
+    border:none;
+    background:var(--card);
+    color:var(--green-dark);
+    width:36px;height:36px;
+    border-radius:12px;
+    font-size:18px;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+  }
+  .apptitle{
+    font-family:'Klee One',sans-serif;
+    font-weight:600;
+    font-size:19px;
+    color:var(--green-dark);
+    letter-spacing:0.5px;
+  }
+  .pagetitle{
+    font-size:16px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .content{
+    padding:8px 18px 24px 18px;
+    flex:1;
+  }
+  .mushroom-card{
+    background:var(--card);
+    border-radius:18px;
+    padding:14px 16px;
+    margin-bottom:12px;
+    box-shadow:0 2px 8px rgba(90,70,30,0.06);
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .mc-top{display:flex;align-items:center;gap:8px;}
+  .mc-icon{font-size:22px;}
+  .mc-title{font-size:16px;font-weight:600;flex:1;}
+  .mc-free{font-size:11px;background:var(--green-pale);color:var(--green-dark);padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .mc-row{font-size:13px;color:var(--text-soft);display:flex;justify-content:space-between;}
+  .mc-participants{font-size:13px;color:var(--text);}
+  .mc-unjoined{font-size:12px;color:var(--orange);}
+  .empty-state, .loading-state{text-align:center;color:var(--text-soft);margin-top:60px;font-size:14px;}
+  .error-state{text-align:center;color:var(--danger);margin-top:60px;font-size:13px;padding:0 20px;}
+  .spinner{width:26px;height:26px;margin:0 auto 12px auto;border-radius:50%;border:3px solid var(--green-pale);border-top-color:var(--green);animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .fab{position:fixed;bottom:26px;left:50%;transform:translateX(calc(-50% + 0px));max-width:430px;width:calc(100% - 36px);margin:0 auto;}
+  .fab-inner{max-width:394px;margin:0 auto;}
+  .btn-primary{display:block;width:100%;background:var(--green);color:#fff;border:none;border-radius:16px;padding:14px;font-size:15px;font-weight:600;font-family:inherit;box-shadow:0 4px 14px rgba(66,96,74,0.28);}
+  .btn-secondary{display:block;width:100%;background:var(--card);color:var(--green-dark);border:1.5px solid var(--green);border-radius:16px;padding:13px;font-size:15px;font-weight:600;font-family:inherit;}
+  .btn-danger{display:block;width:100%;background:#fff;color:var(--danger);border:1.5px solid var(--danger);border-radius:16px;padding:13px;font-size:14px;font-weight:600;font-family:inherit;}
+  .btn-ghost{background:none;border:none;color:var(--green-dark);font-weight:600;font-size:13px;font-family:inherit;}
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--text-soft);margin-bottom:6px;}
+  .field input[type=text], .field input[type=number], .field input[type=password], .field textarea{
+    width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;font-family:inherit;color:var(--text);
+  }
+  .field textarea{min-height:70px;resize:vertical;}
+  .chiprow{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{border:1.5px solid var(--line);background:var(--card);border-radius:20px;padding:8px 13px;font-size:13px;color:var(--text);font-family:inherit;}
+  .chip.selected{background:var(--green);border-color:var(--green);color:#fff;}
+  .emoji-chip{font-size:19px;padding:6px 10px;}
+  .hint{font-size:11px;color:var(--text-soft);margin-top:6px;}
+  .timeparts{display:flex;gap:8px;}
+  .timeparts .tp{flex:1;text-align:center;}
+  .timeparts .tp span{display:block;font-size:11px;color:var(--text-soft);margin-top:4px;}
+  .checkline{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:12px 13px;border:1.5px solid var(--line);}
+  .checkline input{width:18px;height:18px;}
+  .acc-row{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px;margin-bottom:8px;border:1.5px solid var(--line);}
+  .acc-row.on{border-color:var(--green);background:var(--green-pale);}
+  .acc-name{flex:1;font-size:14px;}
+  .tag{font-size:10px;background:var(--purple);color:#fff;padding:2px 7px;border-radius:10px;}
+  .tag.sub{background:var(--orange);}
+  .mega-btn{font-size:11px;border-radius:10px;padding:6px 9px;border:1.5px solid var(--line);background:#fff;color:var(--text-soft);font-family:inherit;}
+  .mega-btn.on{background:var(--yellow);border-color:var(--yellow);color:var(--text);}
+  .wild-row{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:9px 12px;margin-bottom:8px;border:1.5px solid var(--line);}
+  .wild-row input{flex:1;border:none;background:none;font-size:14px;font-family:inherit;color:var(--text);}
+  .iconbtn{border:none;background:none;color:var(--text-soft);font-size:15px;padding:4px 6px;}
+  .section-label{font-size:13px;font-weight:600;color:var(--green-dark);margin:22px 0 10px 0;}
+  .detail-hero{background:var(--card);border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 2px 10px rgba(90,70,30,0.07);}
+  .detail-hero .icon{font-size:34px;}
+  .detail-hero h2{margin:6px 0 2px 0;font-size:20px;}
+  .detail-hero .loc{color:var(--text-soft);font-size:13px;}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+  .stat{background:var(--green-pale);border-radius:12px;padding:10px 12px;}
+  .stat .k{font-size:11px;color:var(--green-dark);}
+  .stat .v{font-size:15px;font-weight:600;margin-top:2px;}
+  .memo-box{background:var(--card);border-radius:14px;padding:14px;font-size:13px;color:var(--text-soft);margin-bottom:14px;white-space:pre-wrap;}
+  .copybox{background:#2f2b24;color:#f2ead8;border-radius:14px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:'Klee One',monospace;margin-bottom:10px;}
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--green-dark);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;z-index:50;box-shadow:0 4px 14px rgba(0,0,0,0.2);}
+  .setup-wrap{padding:50px 24px;text-align:center;}
+  .setup-wrap .apptitle{display:block;font-size:22px;margin-bottom:6px;}
+  .setup-wrap p{color:var(--text-soft);font-size:13px;margin-bottom:22px;text-align:left;line-height:1.7;}
+  .footer-sub{font-size:11px;color:var(--text-soft);text-align:center;margin:22px 0 6px 0;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+
+/* ===================== local config (per-device) ===================== */
+const CONFIG_KEY = 'pikmin-api-config';
+
+async function loadConfig(){
+  try{
+    const v = localStorage.getItem(CONFIG_KEY);
+    if(!v) return null;
+    return JSON.parse(v);
+  }catch(e){ return null; }
+}
+async function saveConfig(cfg){
+  try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }catch(e){}
+}
+
+let CONFIG = null; // {apiUrl, passphrase}
+
+/* ===================== remote data (Google Sheets backend) ===================== */
+const EMPTY_DATA = { accounts: [], mushrooms: [], nameHistory: [] };
+function cloneObj(o){ return JSON.parse(JSON.stringify(o)); }
+
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+
+async function apiRead(){
+  const res = await fetch(`${JSONBIN_BASE}/${CONFIG.binId}/latest`, {
+    method:'GET',
+    headers:{ 'X-Master-Key': CONFIG.masterKey }
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  return json.record || cloneObj(EMPTY_DATA);
+}
+async function apiWrite(data){
+  const res = await fetch(`${JSONBIN_BASE}/${CONFIG.binId}`, {
+    method:'PUT',
+    headers:{ 'Content-Type':'application/json', 'X-Master-Key': CONFIG.masterKey },
+    body: JSON.stringify(data)
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return true;
+}
+async function apiCreateBin(){
+  const res = await fetch(JSONBIN_BASE, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'X-Master-Key': CONFIG.masterKey },
+    body: JSON.stringify(cloneObj(EMPTY_DATA))
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const json = await res.json();
+  return json.metadata.id;
+}
+
+/* ===================== app state ===================== */
+let DATA = cloneObj(EMPTY_DATA);
+let loading = true;
+let loadError = null;
+let viewStack = [{view:'list'}];
+let toastTimer = null;
+
+function currentView(){ return viewStack[viewStack.length-1]; }
+function pushView(v){ viewStack.push(v); render(); window.scrollTo(0,0); }
+function popView(){ if(viewStack.length>1) viewStack.pop(); render(); window.scrollTo(0,0); }
+function resetTo(v){ viewStack=[v]; render(); window.scrollTo(0,0); }
+
+function showToast(msg){
+  clearTimeout(toastTimer);
+  const old = document.querySelector('.toast');
+  if(old) old.remove();
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.getElementById('app').appendChild(t);
+  toastTimer = setTimeout(()=>t.remove(), 1800);
+}
+
+const EMOJI_ORDER = ['🍄','❤️','💛','💙','💜','🤍','🩷','🩶','🩵','🔥','⚡️','💧','☠️','🔮'];
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+
+async function persist(){
+  try{
+    await apiWrite(DATA);
+  }catch(e){
+    showToast('保存に失敗しました: ' + e.message);
+  }
+}
+
+/* ===================== domain logic ===================== */
+function activeAccountIds(mush){ return mush.participations.map(p=>p.accountId); }
+function allParticipantsSorted(mush){
+  const items = [
+    ...mush.participations.map(p=>({type:'account', accountId:p.accountId, megaphone:p.megaphone, joinOrder:p.joinOrder})),
+    ...mush.wildParticipations.map(w=>({type:'wild', id:w.id, name:w.name, joinOrder:w.joinOrder}))
+  ];
+  items.sort((a,b)=>a.joinOrder-b.joinOrder);
+  return items.map((it,idx)=>({...it, slot: idx<5 ? 'free':'ticket'}));
+}
+function freeSlotsRemaining(mush){
+  const total = mush.participations.length + mush.wildParticipations.length;
+  return Math.max(0, 5-total);
+}
+function accountById(id){ return DATA.accounts.find(a=>a.id===id); }
+
+function computeInInfo(mush){
+  const sorted = allParticipantsSorted(mush);
+  const mains = sorted.filter(it=>it.type==='account' && accountById(it.accountId) && accountById(it.accountId).accountType==='main');
+  const wilds = sorted.filter(it=>it.type==='wild');
+  const residual = mains.length + wilds.length;
+  const freeAfterSubOut = Math.max(0, 5-residual);
+  const joinedMainIds = mains.map(m=>m.accountId);
+  const unjoinedMains = DATA.accounts.filter(a=>a.accountType==='main' && !joinedMainIds.includes(a.id));
+  const inCount = Math.min(freeAfterSubOut, unjoinedMains.length);
+  const subs = sorted.filter(it=>it.type==='account' && accountById(it.accountId) && accountById(it.accountId).accountType==='sub');
+  return { subs, unjoinedMains, inCount };
+}
+
+function fmtDateTime(ts){
+  if(!ts) return '未設定';
+  const d = new Date(ts);
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function expectedCompleteAt(mush){
+  if(mush.observedAt==null || mush.remainingSeconds==null) return null;
+  return mush.observedAt + mush.remainingSeconds*1000;
+}
+function remainingLabel(mush){
+  if(mush.remainingSeconds==null) return '未設定';
+  const exp = expectedCompleteAt(mush);
+  const diff = exp - Date.now();
+  if(diff<=0) return 'まもなく壊れる';
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  const d = Math.floor(h/24);
+  if(d>0) return `${d}日${h%24}時間`;
+  if(h>0) return `${h}時間${m}分`;
+  return `${m}分`;
+}
+function monthBorderInfo(mush){
+  if(!mush.crossMonth || !mush.targetCompleteAt) return null;
+  if(mush.totalWorkPower==null || mush.remainingSeconds==null) return {incomplete:true};
+  const now = Date.now();
+  const T = (mush.targetCompleteAt - now)/1000;
+  const R = mush.remainingSeconds;
+  const P = mush.totalWorkPower;
+  if(T<=0 || R<=0) return {incomplete:true};
+  const borderPower = P * R / T;
+  const borderMargin = borderPower - P;
+  return { incomplete:false, borderPower, borderMargin, targetCompleteAt: mush.targetCompleteAt };
+}
+function nextMonthFirstMidnight(from){
+  const d = new Date(from);
+  const y = d.getFullYear(); const m = d.getMonth();
+  return new Date(y, m+1, 1, 0,0,0,0).getTime();
+}
+
+function nameToken(item){
+  if(item.type==='wild') return item.name;
+  const acc = accountById(item.accountId);
+  return acc ? acc.displayName : '';
+}
+function buildLine2(mush){
+  const sorted = allParticipantsSorted(mush);
+  const accItems = sorted.filter(i=>i.type==='account');
+  const mainDone = accItems.filter(i=>accountById(i.accountId)?.accountType==='main' && i.megaphone).map(nameToken);
+  const subDone = accItems.filter(i=>accountById(i.accountId)?.accountType==='sub' && i.megaphone).map(nameToken);
+  const mainUndone = accItems.filter(i=>accountById(i.accountId)?.accountType==='main' && !i.megaphone).map(nameToken);
+  const subUndone = accItems.filter(i=>accountById(i.accountId)?.accountType==='sub' && !i.megaphone).map(nameToken);
+  const wildTokens = sorted.filter(i=>i.type==='wild').map(i=> i.slot==='free' ? '野良' : 'チケ野良');
+  const freeOpen = '空き'.repeat(freeSlotsRemaining(mush));
+  return mainDone.join('') + subDone.join('') + '📣' + mainUndone.join('') + subUndone.join('') + wildTokens.join('') + freeOpen;
+}
+function buildMushroomCopy(mush){
+  const line1 = `${mush.icon}${mush.title}`;
+  const line2 = buildLine2(mush);
+  const line3 = fmtDateTime(expectedCompleteAt(mush));
+  const {subs, unjoinedMains, inCount} = computeInInfo(mush);
+  const line4 = subs.map(nameToken).join('') + 'OUT';
+  const line5 = unjoinedMains.map(a=>a.displayName).join('') + `の中から${inCount}IN`;
+  return [line1,line2,line3,line4,line5].join('\n');
+}
+function buildAllCopy(){ return DATA.mushrooms.map(buildMushroomCopy).join('\n\n'); }
+function copyToClipboard(text){
+  try{
+    navigator.clipboard.writeText(text).then(()=>showToast('コピーしました')).catch(()=>fallbackCopy(text));
+  }catch(e){ fallbackCopy(text); }
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); showToast('コピーしました'); }catch(e){ showToast('コピーに失敗しました'); }
+  ta.remove();
+}
+
+function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild; }
+function topbar(title){
+  return `<div class="topbar">
+    <button class="backbtn" data-act="back">‹</button>
+    <div class="pagetitle">${title}</div>
+  </div>`;
+}
+
+/* ===================== setup screen ===================== */
+function renderSetup(prefillError, prefillNotice){
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="page">
+    <div class="setup-wrap">
+      <span class="apptitle">⸜\\ フキダシのキノコたち /⸝</span>
+      <p>JSONBin.ioのMaster Keyを入力してください。Bin IDは、初めての人は空欄のままでOK(自動で作成されます)。2人目以降は、最初の人から共有されたBin IDを入力してください。この端末に保存され、次回から入力不要です。</p>
+      <div class="field" style="text-align:left;">
+        <label>Master Key</label>
+        <input type="password" id="s-key">
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Bin ID(空欄可・2人目以降は入力)</label>
+        <input type="text" id="s-bin" placeholder="例: 65a1b2c3d4e5f6...">
+      </div>
+      ${prefillNotice ? `<div class="hint" style="color:var(--green-dark);margin-bottom:10px;">${prefillNotice}</div>`:''}
+      ${prefillError ? `<div class="hint" style="color:var(--danger);margin-bottom:10px;">${prefillError}</div>`:''}
+      <button class="btn-primary" data-act="connect">接続する</button>
+    </div>
+  </div>`;
+  app.querySelector('[data-act=connect]').addEventListener('click', async ()=>{
+    const key = document.getElementById('s-key').value.trim();
+    let binId = document.getElementById('s-bin').value.trim();
+    if(!key){ showToast('Master Keyを入力してください'); return; }
+    CONFIG = {masterKey:key, binId:binId};
+    showToast('接続を確認しています…');
+    try{
+      if(!binId){
+        binId = await apiCreateBin();
+        CONFIG.binId = binId;
+        DATA = cloneObj(EMPTY_DATA);
+      } else {
+        DATA = await apiRead();
+      }
+      await saveConfig(CONFIG);
+      loading=false; loadError=null;
+      if(!document.getElementById('s-bin').value.trim()){
+        // freshly created — show the id so it can be shared
+      }
+      resetTo({view:'list'});
+      if(binId) showToast('Bin ID: ' + binId + '(みんなに共有してください)');
+    }catch(e){
+      renderSetup('接続に失敗しました: ' + e.message + '(Master Key・Bin IDを確認してください)');
+    }
+  });
+}
+
+/* ===================== views ===================== */
+function renderList(){
+  const app = document.getElementById('app');
+  let body;
+  if(loading){
+    body = `<div class="loading-state"><div class="spinner"></div>キノコを読み込んでいます</div>`;
+  } else if(loadError){
+    body = `<div class="error-state">読み込みに失敗しました<br>${loadError}<br><button class="btn-ghost" data-act="retry" style="margin-top:10px;">再試行</button></div>`;
+  } else if(DATA.mushrooms.length===0){
+    body = `<div class="empty-state">キノコはありません<br><span style="font-size:12px;">右下の＋から登録してみましょう</span></div>`;
+  } else {
+    const sorted = [...DATA.mushrooms].sort((a,b)=>(expectedCompleteAt(a)||Infinity)-(expectedCompleteAt(b)||Infinity));
+    body = sorted.map(m=>{
+      const sortedP = allParticipantsSorted(m);
+      const names = sortedP.map(nameToken).join('・') || '(参加者なし)';
+      const {unjoinedMains} = computeInInfo(m);
+      const freeLeft = freeSlotsRemaining(m);
+      return `<div class="mushroom-card" data-open="${m.id}">
+        <div class="mc-top">
+          <div class="mc-icon">${m.icon}</div>
+          <div class="mc-title">${m.title}</div>
+          <div class="mc-free">空き${freeLeft}</div>
+        </div>
+        <div class="mc-row"><span>壊れ予定</span><span>${fmtDateTime(expectedCompleteAt(m))}</span></div>
+        <div class="mc-row"><span>総おしごと力</span><span>${m.totalWorkPower ?? '未設定'}</span></div>
+        <div class="mc-participants">参加　${names}</div>
+        ${unjoinedMains.length ? `<div class="mc-unjoined">未参加：${unjoinedMains.map(a=>a.displayName).join('・')}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  app.innerHTML = `<div class="page">
+    <div class="topbar">
+      <div class="apptitle">⸜\\ フキダシのキノコたち /⸝</div>
+    </div>
+    <div class="content">
+      ${(!loading && !loadError && DATA.mushrooms.length>0) ? `<div style="text-align:right;margin-bottom:8px;"><button class="btn-ghost" data-act="copy-all">全キノコをコピー</button></div>`:''}
+      ${body}
+    </div>
+    <div class="fab"><div class="fab-inner" style="display:flex;gap:10px;">
+      <button class="btn-secondary" data-act="settings" style="flex:1;">設定</button>
+      <button class="btn-primary" data-act="new" style="flex:2;">＋ キノコを登録</button>
+    </div></div>
+  </div>`;
+  app.querySelectorAll('[data-open]').forEach(c=>{
+    c.addEventListener('click', ()=> pushView({view:'detail', id:c.dataset.open}));
+  });
+  const cb = app.querySelector('[data-act=copy-all]');
+  if(cb) cb.addEventListener('click', ()=> copyToClipboard(buildAllCopy()));
+  const rt = app.querySelector('[data-act=retry]');
+  if(rt) rt.addEventListener('click', ()=> boot());
+  app.querySelector('[data-act=settings]').addEventListener('click', ()=> pushView({view:'settings'}));
+  app.querySelector('[data-act=new]').addEventListener('click', ()=> pushView({view:'new'}));
+}
+
+function renderDetail(id){
+  const app = document.getElementById('app');
+  const m = DATA.mushrooms.find(x=>x.id===id);
+  if(!m){ resetTo({view:'list'}); return; }
+  const border = monthBorderInfo(m);
+  const {unjoinedMains, inCount} = computeInInfo(m);
+  const sortedP = allParticipantsSorted(m);
+  app.innerHTML = `<div class="page">
+    ${topbar('キノコの詳細')}
+    <div class="content">
+      <div class="detail-hero">
+        <div class="icon">${m.icon}</div>
+        <h2>${m.title}</h2>
+        <div class="loc">${m.location || '場所未設定'}</div>
+        <div class="statgrid">
+          <div class="stat"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
+          <div class="stat"><div class="k">残り時間</div><div class="v">${remainingLabel(m)}</div></div>
+          <div class="stat"><div class="k">壊れ予定</div><div class="v">${fmtDateTime(expectedCompleteAt(m))}</div></div>
+          <div class="stat"><div class="k">無料枠の空き</div><div class="v">${freeSlotsRemaining(m)}</div></div>
+        </div>
+        ${m.crossMonth ? `<div class="stat" style="margin-top:10px;">
+          <div class="k">月跨ぎ(希望日0:00まで)</div>
+          ${border && !border.incomplete ? `
+            <div class="v">ボーダー時刻: ${fmtDateTime(border.targetCompleteAt)}</div>
+            <div style="font-size:13px;margin-top:4px;">ボーダーおしごと力: <b>${border.borderPower.toFixed(0)}</b></div>
+            <div style="font-size:13px;">ボーダー猶予: <b>${border.borderMargin.toFixed(0)}</b></div>
+          ` : `<div class="hint">計算に必要な項目(総おしごと力・残り時間)が未設定です</div>`}
+        </div>` : ''}
+      </div>
+
+      <div class="section-label">参加状況</div>
+      <div class="memo-box" style="margin-bottom:14px;">
+        ${sortedP.length ? sortedP.map(p=>`${p.slot==='ticket'?'🎫':''}${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}`).join('　') : '参加者はいません'}
+        ${unjoinedMains.length ? `<div style="margin-top:8px;color:var(--orange);">未参加メイン: ${unjoinedMains.map(a=>a.displayName).join('・')}(${inCount}IN可)</div>`:''}
+      </div>
+
+      ${m.memo ? `<div class="section-label">メモ</div><div class="memo-box">${m.memo}</div>` : ''}
+
+      <div class="section-label">定型コピー</div>
+      <div class="copybox">${buildMushroomCopy(m)}</div>
+      <button class="btn-secondary" data-act="copy" style="margin-bottom:22px;">このキノコをコピー</button>
+
+      <button class="btn-primary" data-act="update" style="margin-bottom:10px;">参加状況を更新</button>
+      <button class="btn-danger" data-act="delete">キノコを削除</button>
+    </div>
+  </div>`;
+  app.querySelector('[data-act=back]').addEventListener('click', popView);
+  app.querySelector('[data-act=copy]').addEventListener('click', ()=> copyToClipboard(buildMushroomCopy(m)));
+  app.querySelector('[data-act=update]').addEventListener('click', ()=> pushView({view:'update', id:m.id}));
+  app.querySelector('[data-act=delete]').addEventListener('click', async ()=>{
+    if(!confirm(`「${m.title}」を削除します。よろしいですか?(元に戻せません)`)) return;
+    DATA.mushrooms = DATA.mushrooms.filter(x=>x.id!==m.id);
+    await persist();
+    resetTo({view:'list'});
+    showToast('削除しました');
+  });
+}
+
+function renderMushroomForm(existing){
+  const app = document.getElementById('app');
+  const isNew = !existing;
+  const draft = existing ? cloneObj(existing) : {
+    id: uid(), title:'', icon:EMOJI_ORDER[0], location:'',
+    remainingSeconds:null, observedAt:null, crossMonth:false, targetCompleteAt:null,
+    totalWorkPower:null, memo:'',
+    participations:[], wildParticipations:[], joinCounter:0,
+    createdAt: Date.now()
+  };
+  if(draft.joinCounter==null){
+    draft.joinCounter = Math.max(0, ...draft.participations.map(p=>p.joinOrder+1), ...draft.wildParticipations.map(w=>w.joinOrder+1), 0);
+  }
+  let remD=0, remH=0, remM=0;
+  if(draft.remainingSeconds!=null){
+    remD = Math.floor(draft.remainingSeconds/86400);
+    remH = Math.floor((draft.remainingSeconds%86400)/3600);
+    remM = Math.floor((draft.remainingSeconds%3600)/60);
+  }
+  const nameHistorySorted = [...DATA.nameHistory].sort((a,b)=>b.lastUsedAt-a.lastUsedAt).slice(0,10);
+
+  function accRowHtml(acc){
+    const p = draft.participations.find(x=>x.accountId===acc.id);
+    const on = !!p;
+    return `<div class="acc-row ${on?'on':''}" data-accrow="${acc.id}">
+      <div class="acc-name">${acc.displayName} <span class="tag ${acc.accountType==='sub'?'sub':''}">${acc.accountType==='main'?'メイン':'サブ'}</span></div>
+      ${on ? `<button class="mega-btn ${p.megaphone?'on':''}" data-mega="${acc.id}">📣${p.megaphone?'済':'未'}</button>`:''}
+      <button class="chip ${on?'selected':''}" data-toggleacc="${acc.id}">${on?'参加中':'参加'}</button>
+    </div>`;
+  }
+
+  app.innerHTML = `<div class="page">
+    ${topbar(isNew?'キノコを登録':'参加状況を更新')}
+    <div class="content" id="formcontent">
+      <div class="field">
+        <label>キノコ名</label>
+        <input type="text" id="f-title" placeholder="例：お地蔵さん" value="${draft.title||''}">
+        ${nameHistorySorted.length ? `<div class="chiprow" style="margin-top:8px;">${nameHistorySorted.map(h=>`<button class="chip" data-namepick="${encodeURIComponent(h.title)}">${h.title}</button>`).join('')}</div>`:''}
+      </div>
+      <div class="field">
+        <label>絵文字</label>
+        <div class="chiprow">${EMOJI_ORDER.map(e=>`<button class="chip emoji-chip ${draft.icon===e?'selected':''}" data-emoji="${e}">${e}</button>`).join('')}</div>
+      </div>
+      <div class="field">
+        <label>場所(任意)</label>
+        <input type="text" id="f-location" value="${draft.location||''}">
+      </div>
+      <div class="field">
+        <label>残り時間</label>
+        <div class="timeparts">
+          <div class="tp"><input type="number" min="0" id="f-remD" value="${remD||''}" placeholder="0"><span>日</span></div>
+          <div class="tp"><input type="number" min="0" id="f-remH" value="${remH||''}" placeholder="0"><span>時</span></div>
+          <div class="tp"><input type="number" min="0" id="f-remM" value="${remM||''}" placeholder="0"><span>分</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="checkline">
+          <input type="checkbox" id="f-crossmonth" ${draft.crossMonth?'checked':''}>
+          <label style="margin:0;" for="f-crossmonth">月跨ぎ用にする(保存時点の翌月1日0:00をボーダーにします)</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>総おしごと力</label>
+        <input type="number" id="f-power" value="${draft.totalWorkPower ?? ''}">
+      </div>
+
+      <div class="section-label">参加状況(固定アカウント)</div>
+      <div id="acc-list">${DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>'}</div>
+
+      <div class="section-label">野良参加者</div>
+      <div id="wild-list">${draft.wildParticipations.map(w=>`
+        <div class="wild-row" data-wildrow="${w.id}">
+          <input type="text" value="${w.name}" data-wildname="${w.id}">
+          <button class="iconbtn" data-wilddel="${w.id}">✕</button>
+        </div>`).join('')}</div>
+      <button class="btn-ghost" data-act="addwild">＋ 野良を追加</button>
+
+      <div class="field" style="margin-top:20px;">
+        <label>メモ(任意)</label>
+        <textarea id="f-memo">${draft.memo||''}</textarea>
+      </div>
+
+      <button class="btn-primary" data-act="save" style="margin-top:6px;">${isNew?'登録する':'更新する'}</button>
+    </div>
+  </div>`;
+
+  app.querySelector('[data-act=back]').addEventListener('click', popView);
+  app.querySelectorAll('[data-emoji]').forEach(b=>b.addEventListener('click', ()=>{
+    draft.icon=b.dataset.emoji;
+    app.querySelectorAll('[data-emoji]').forEach(x=>x.classList.toggle('selected', x.dataset.emoji===draft.icon));
+  }));
+  app.querySelectorAll('[data-namepick]').forEach(b=>b.addEventListener('click', ()=>{
+    document.getElementById('f-title').value = decodeURIComponent(b.dataset.namepick);
+  }));
+
+  function refreshAccList(){
+    document.getElementById('acc-list').innerHTML = DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>';
+    bindAccList();
+  }
+  function bindAccList(){
+    document.querySelectorAll('[data-toggleacc]').forEach(b=>b.addEventListener('click', ()=>{
+      const accId=b.dataset.toggleacc;
+      const idx = draft.participations.findIndex(p=>p.accountId===accId);
+      if(idx>=0){ draft.participations.splice(idx,1); }
+      else { draft.participations.push({accountId:accId, megaphone:false, joinOrder:draft.joinCounter++}); }
+      refreshAccList();
+    }));
+    document.querySelectorAll('[data-mega]').forEach(b=>b.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const p = draft.participations.find(p=>p.accountId===b.dataset.mega);
+      if(p){ p.megaphone=!p.megaphone; refreshAccList(); }
+    }));
+  }
+  bindAccList();
+
+  function refreshWildList(){
+    document.getElementById('wild-list').innerHTML = draft.wildParticipations.map(w=>`
+        <div class="wild-row" data-wildrow="${w.id}">
+          <input type="text" value="${w.name}" data-wildname="${w.id}">
+          <button class="iconbtn" data-wilddel="${w.id}">✕</button>
+        </div>`).join('');
+    bindWildList();
+  }
+  function bindWildList(){
+    document.querySelectorAll('[data-wildname]').forEach(inp=>inp.addEventListener('input', ()=>{
+      const w = draft.wildParticipations.find(w=>w.id===inp.dataset.wildname);
+      if(w) w.name = inp.value;
+    }));
+    document.querySelectorAll('[data-wilddel]').forEach(b=>b.addEventListener('click', ()=>{
+      draft.wildParticipations = draft.wildParticipations.filter(w=>w.id!==b.dataset.wilddel);
+      refreshWildList();
+    }));
+  }
+  bindWildList();
+  app.querySelector('[data-act=addwild]').addEventListener('click', ()=>{
+    draft.wildParticipations.push({id:uid(), name:'', joinOrder:draft.joinCounter++});
+    refreshWildList();
+  });
+
+  app.querySelector('[data-act=save]').addEventListener('click', async ()=>{
+    const title = document.getElementById('f-title').value.trim();
+    if(!title){ showToast('キノコ名を入力してください'); return; }
+    draft.title = title;
+    draft.location = document.getElementById('f-location').value.trim();
+    const d=parseInt(document.getElementById('f-remD').value)||0;
+    const h=parseInt(document.getElementById('f-remH').value)||0;
+    const mi=parseInt(document.getElementById('f-remM').value)||0;
+    const hasTime = document.getElementById('f-remD').value || document.getElementById('f-remH').value || document.getElementById('f-remM').value;
+    draft.remainingSeconds = hasTime ? (d*86400 + h*3600 + mi*60) : null;
+    draft.observedAt = Date.now();
+    draft.crossMonth = document.getElementById('f-crossmonth').checked;
+    draft.targetCompleteAt = draft.crossMonth ? nextMonthFirstMidnight(Date.now()) : null;
+    const powerVal = document.getElementById('f-power').value;
+    draft.totalWorkPower = powerVal===''? null : Number(powerVal);
+    draft.memo = document.getElementById('f-memo').value.trim();
+    draft.wildParticipations = draft.wildParticipations.filter(w=>w.name.trim()!=='');
+
+    if(isNew){ DATA.mushrooms.push(draft); }
+    else{
+      const idx = DATA.mushrooms.findIndex(m=>m.id===draft.id);
+      DATA.mushrooms[idx] = draft;
+    }
+    const hIdx = DATA.nameHistory.findIndex(h=>h.title===title);
+    if(hIdx>=0) DATA.nameHistory[hIdx].lastUsedAt = Date.now();
+    else DATA.nameHistory.push({title, lastUsedAt: Date.now()});
+
+    await persist();
+    showToast(isNew?'登録しました':'更新しました');
+    resetTo({view:'detail', id:draft.id});
+  });
+}
+
+function renderSettings(){
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="page">
+    ${topbar('設定')}
+    <div class="content">
+      <div class="section-label">固定アカウント</div>
+      <div class="hint" style="margin-bottom:10px;">キノコ登録で選ぶアカウントを登録します。</div>
+      <div id="acc-settings-list">${DATA.accounts.map(a=>`
+        <div class="acc-row" data-accedit="${a.id}">
+          <div class="acc-name">${a.displayName} <span class="tag ${a.accountType==='sub'?'sub':''}">${a.accountType==='main'?'メイン':'サブ'}</span></div>
+          <button class="btn-ghost" data-editbtn="${a.id}">編集</button>
+        </div>`).join('') || '<div class="hint">まだ登録がありません</div>'}</div>
+      <button class="btn-secondary" data-act="addacc" style="margin-bottom:26px;">＋ アカウントを追加</button>
+
+      <div class="section-label">接続設定</div>
+      <div class="hint" style="margin-bottom:10px;">Master Key・Bin IDはこの端末に保存されています。</div>
+      <div class="hint" style="margin-bottom:10px;word-break:break-all;">現在のBin ID: <b>${CONFIG.binId}</b>(他の4人はこのBin IDと同じMaster Keyを使って接続してください)</div>
+      <button class="btn-ghost" data-act="reconnect">接続設定を変更する</button>
+
+      <div class="footer-sub">身内5人でMaster KeyとBin IDを共有して利用してください</div>
+    </div>
+  </div>`;
+  app.querySelector('[data-act=back]').addEventListener('click', popView);
+  app.querySelectorAll('[data-editbtn]').forEach(b=>b.addEventListener('click', ()=>{
+    pushView({view:'accedit', id:b.dataset.editbtn});
+  }));
+  app.querySelector('[data-act=addacc]').addEventListener('click', ()=> pushView({view:'accedit', id:null}));
+  app.querySelector('[data-act=reconnect]').addEventListener('click', ()=>{
+    resetTo({view:'setup'});
+  });
+}
+
+function renderAccEdit(id){
+  const app = document.getElementById('app');
+  const existing = id ? accountById(id) : null;
+  app.innerHTML = `<div class="page">
+    ${topbar(existing?'アカウントを編集':'アカウントを追加')}
+    <div class="content">
+      <div class="field">
+        <label>アカウント名</label>
+        <input type="text" id="f-accname" value="${existing?existing.displayName:''}">
+      </div>
+      <div class="field">
+        <label>区分</label>
+        <div class="chiprow">
+          <button class="chip ${(!existing||existing.accountType==='main')?'selected':''}" data-type="main">メイン</button>
+          <button class="chip ${existing&&existing.accountType==='sub'?'selected':''}" data-type="sub">サブ</button>
+        </div>
+      </div>
+      <button class="btn-primary" data-act="save" style="margin-top:10px;">保存する</button>
+      ${existing ? `<button class="btn-danger" data-act="del" style="margin-top:10px;">このアカウントを削除</button>`:''}
+    </div>
+  </div>`;
+  let type = existing ? existing.accountType : 'main';
+  app.querySelector('[data-act=back]').addEventListener('click', popView);
+  app.querySelectorAll('[data-type]').forEach(b=>b.addEventListener('click', ()=>{
+    type=b.dataset.type;
+    app.querySelectorAll('[data-type]').forEach(x=>x.classList.toggle('selected', x.dataset.type===type));
+  }));
+  app.querySelector('[data-act=save]').addEventListener('click', async ()=>{
+    const name = document.getElementById('f-accname').value.trim();
+    if(!name){ showToast('名前を入力してください'); return; }
+    if(existing){ existing.displayName = name; existing.accountType = type; }
+    else{ DATA.accounts.push({id:uid(), displayName:name, accountType:type}); }
+    await persist();
+    showToast('保存しました');
+    popView();
+  });
+  const delBtn = app.querySelector('[data-act=del]');
+  if(delBtn) delBtn.addEventListener('click', async ()=>{
+    if(!confirm(`「${existing.displayName}」を削除しますか?`)) return;
+    DATA.accounts = DATA.accounts.filter(a=>a.id!==existing.id);
+    await persist();
+    popView();
+  });
+}
+
+/* ===================== main render ===================== */
+function render(){
+  const v = currentView();
+  if(v.view==='setup') return renderSetup();
+  if(v.view==='list') return renderList();
+  if(v.view==='detail') return renderDetail(v.id);
+  if(v.view==='new') return renderMushroomForm(null);
+  if(v.view==='update'){
+    const m = DATA.mushrooms.find(x=>x.id===v.id);
+    return renderMushroomForm(m);
+  }
+  if(v.view==='settings') return renderSettings();
+  if(v.view==='accedit') return renderAccEdit(v.id);
+  return renderList();
+}
+
+/* ===================== boot ===================== */
+async function boot(){
+  loading = true; loadError = null;
+  render();
+  CONFIG = await loadConfig();
+  if(!CONFIG || !CONFIG.masterKey || !CONFIG.binId){
+    resetTo({view:'setup'});
+    return;
+  }
+  try{
+    DATA = await apiRead();
+    loading = false;
+    render();
+  }catch(e){
+    loading = false;
+    loadError = e.message;
+    render();
+  }
+}
+boot();
+
+})();
+</script>
+</body>
+</html>
