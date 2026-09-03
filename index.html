@@ -26,7 +26,7 @@
     margin:0;
     background:var(--cream);
     color:var(--text);
-    font-family:'Zen Maru Gothic','Klee One',sans-serif;
+    font-family:'Klee One','Zen Maru Gothic',sans-serif;
     font-weight:400;
     -webkit-font-smoothing:antialiased;
   }
@@ -213,6 +213,23 @@ let loading = true;
 let loadError = null;
 let viewStack = [{view:'list'}];
 let toastTimer = null;
+
+const PERSONAL_KEY = 'pikmin-personal-mushrooms';
+let PERSONAL = [];
+function loadPersonalLocal(){
+  try{ const v = localStorage.getItem(PERSONAL_KEY); return v ? JSON.parse(v) : []; }
+  catch(e){ return []; }
+}
+function savePersonalLocal(){
+  try{ localStorage.setItem(PERSONAL_KEY, JSON.stringify(PERSONAL)); }catch(e){}
+}
+function savePersonal(draft){
+  const idx = PERSONAL.findIndex(m=>m.id===draft.id);
+  if(idx>=0) PERSONAL[idx]=draft; else PERSONAL.push(draft);
+  savePersonalLocal();
+}
+function personalById(id){ return PERSONAL.find(m=>m.id===id); }
+function findMush(id, isPersonal){ return isPersonal ? personalById(id) : DATA.mushrooms.find(x=>x.id===id); }
 
 function currentView(){ return viewStack[viewStack.length-1]; }
 function pushView(v){ viewStack.push(v); render(); window.scrollTo(0,0); }
@@ -402,34 +419,37 @@ function renderSetup(prefillError, prefillNotice){
 }
 
 /* ===================== views ===================== */
+function mushroomCardHtml(m, isPersonal){
+  const sortedP = allParticipantsSorted(m);
+  const names = sortedP.map(nameToken).join('・') || '(参加者なし)';
+  const {unjoinedMains} = computeInInfo(m);
+  const freeLeft = freeSlotsRemaining(m);
+  return `<div class="mushroom-card" data-open="${m.id}" data-personal="${isPersonal?'1':'0'}">
+    <div class="mc-top">
+      <div class="mc-icon">${m.icon}</div>
+      <div class="mc-title">${m.title}</div>
+      <div class="mc-free">空き${freeLeft}</div>
+    </div>
+    <div class="mc-row"><span>壊れ予定</span><span>${fmtDateTime(expectedCompleteAt(m))}</span></div>
+    <div class="mc-row"><span>総おしごと力</span><span>${m.totalWorkPower ?? '未設定'}</span></div>
+    <div class="mc-participants">参加　${names}</div>
+    ${unjoinedMains.length ? `<div class="mc-unjoined">未参加：${unjoinedMains.map(a=>a.displayName).join('・')}</div>` : ''}
+  </div>`;
+}
 function renderList(){
   const app = document.getElementById('app');
-  let body;
+  let sharedBody, personalBody;
   if(loading){
-    body = `<div class="loading-state"><div class="spinner"></div>キノコを読み込んでいます</div>`;
+    sharedBody = `<div class="loading-state"><div class="spinner"></div>キノコを読み込んでいます</div>`;
+    personalBody = '';
   } else if(loadError){
-    body = `<div class="error-state">読み込みに失敗しました<br>${loadError}<br><button class="btn-ghost" data-act="retry" style="margin-top:10px;">再試行</button></div>`;
-  } else if(DATA.mushrooms.length===0){
-    body = `<div class="empty-state">キノコはありません<br><span style="font-size:12px;">右下の＋から登録してみましょう</span></div>`;
+    sharedBody = `<div class="error-state">読み込みに失敗しました<br>${loadError}<br><button class="btn-ghost" data-act="retry" style="margin-top:10px;">再試行</button></div>`;
+    personalBody = '';
   } else {
-    const sorted = [...DATA.mushrooms].sort((a,b)=>(expectedCompleteAt(a)||Infinity)-(expectedCompleteAt(b)||Infinity));
-    body = sorted.map(m=>{
-      const sortedP = allParticipantsSorted(m);
-      const names = sortedP.map(nameToken).join('・') || '(参加者なし)';
-      const {unjoinedMains} = computeInInfo(m);
-      const freeLeft = freeSlotsRemaining(m);
-      return `<div class="mushroom-card" data-open="${m.id}">
-        <div class="mc-top">
-          <div class="mc-icon">${m.icon}</div>
-          <div class="mc-title">${m.title}</div>
-          <div class="mc-free">空き${freeLeft}</div>
-        </div>
-        <div class="mc-row"><span>壊れ予定</span><span>${fmtDateTime(expectedCompleteAt(m))}</span></div>
-        <div class="mc-row"><span>総おしごと力</span><span>${m.totalWorkPower ?? '未設定'}</span></div>
-        <div class="mc-participants">参加　${names}</div>
-        ${unjoinedMains.length ? `<div class="mc-unjoined">未参加：${unjoinedMains.map(a=>a.displayName).join('・')}</div>` : ''}
-      </div>`;
-    }).join('');
+    const sortedShared = [...DATA.mushrooms].sort((a,b)=>(expectedCompleteAt(a)||Infinity)-(expectedCompleteAt(b)||Infinity));
+    sharedBody = sortedShared.length ? sortedShared.map(m=>mushroomCardHtml(m,false)).join('') : `<div class="empty-state">キノコはありません<br><span style="font-size:12px;">右下の＋から登録してみましょう</span></div>`;
+    const sortedPersonal = [...PERSONAL].sort((a,b)=>(expectedCompleteAt(a)||Infinity)-(expectedCompleteAt(b)||Infinity));
+    personalBody = sortedPersonal.length ? sortedPersonal.map(m=>mushroomCardHtml(m,true)).join('') : `<div class="hint" style="text-align:center;margin-top:10px;">個人リストは空です</div>`;
   }
   app.innerHTML = `<div class="page">
     <div class="topbar">
@@ -437,7 +457,11 @@ function renderList(){
     </div>
     <div class="content">
       ${(!loading && !loadError && DATA.mushrooms.length>0) ? `<div style="text-align:right;margin-bottom:8px;"><button class="btn-ghost" data-act="copy-all">全キノコをコピー</button></div>`:''}
-      ${body}
+      ${sharedBody}
+      ${!loading && !loadError ? `
+        <div class="section-label">個人リスト(この端末だけ・他の人には見えません)</div>
+        ${personalBody}
+      ` : ''}
     </div>
     <div class="fab"><div class="fab-inner" style="display:flex;gap:10px;">
       <button class="btn-secondary" data-act="settings" style="flex:1;">設定</button>
@@ -445,7 +469,7 @@ function renderList(){
     </div></div>
   </div>`;
   app.querySelectorAll('[data-open]').forEach(c=>{
-    c.addEventListener('click', ()=> pushView({view:'detail', id:c.dataset.open}));
+    c.addEventListener('click', ()=> pushView({view:'detail', id:c.dataset.open, personal: c.dataset.personal==='1'}));
   });
   const cb = app.querySelector('[data-act=copy-all]');
   if(cb) cb.addEventListener('click', ()=> copyToClipboard(buildAllCopy()));
@@ -455,15 +479,15 @@ function renderList(){
   app.querySelector('[data-act=new]').addEventListener('click', ()=> pushView({view:'new'}));
 }
 
-function renderDetail(id){
+function renderDetail(id, isPersonal){
   const app = document.getElementById('app');
-  const m = DATA.mushrooms.find(x=>x.id===id);
+  const m = findMush(id, isPersonal);
   if(!m){ resetTo({view:'list'}); return; }
   const border = monthBorderInfo(m);
   const {unjoinedMains, inCount} = computeInInfo(m);
   const sortedP = allParticipantsSorted(m);
   app.innerHTML = `<div class="page">
-    ${topbar('キノコの詳細')}
+    ${topbar('キノコの詳細' + (isPersonal ? '(個人リスト)' : ''))}
     <div class="content">
       <div class="detail-hero">
         <div class="icon">${m.icon}</div>
@@ -493,21 +517,26 @@ function renderDetail(id){
 
       ${m.memo ? `<div class="section-label">メモ</div><div class="memo-box">${m.memo}</div>` : ''}
 
-      <div class="section-label">定型コピー</div>
-      <div class="copybox">${buildMushroomCopy(m)}</div>
-      <button class="btn-secondary" data-act="copy" style="margin-bottom:22px;">このキノコをコピー</button>
+      <button class="btn-secondary" data-act="copy" style="margin-bottom:22px;">定型コピーをコピー</button>
 
-      <button class="btn-primary" data-act="update" style="margin-bottom:10px;">参加状況を更新</button>
+      <button class="btn-primary" data-act="update-members" style="margin-bottom:10px;">メンバー・メガホンを更新</button>
+      <button class="btn-primary" data-act="update-time" style="margin-bottom:10px;background:var(--orange);box-shadow:0 4px 14px rgba(233,168,104,0.28);">残り時間・おしごと力を更新</button>
       <button class="btn-danger" data-act="delete">キノコを削除</button>
     </div>
   </div>`;
   app.querySelector('[data-act=back]').addEventListener('click', popView);
   app.querySelector('[data-act=copy]').addEventListener('click', ()=> copyToClipboard(buildMushroomCopy(m)));
-  app.querySelector('[data-act=update]').addEventListener('click', ()=> pushView({view:'update', id:m.id}));
+  app.querySelector('[data-act=update-members]').addEventListener('click', ()=> pushView({view:'update-members', id:m.id, personal:isPersonal}));
+  app.querySelector('[data-act=update-time]').addEventListener('click', ()=> pushView({view:'update-time', id:m.id, personal:isPersonal}));
   app.querySelector('[data-act=delete]').addEventListener('click', async ()=>{
     if(!confirm(`「${m.title}」を削除します。よろしいですか?(元に戻せません)`)) return;
-    DATA.mushrooms = DATA.mushrooms.filter(x=>x.id!==m.id);
-    await persist();
+    if(isPersonal){
+      PERSONAL = PERSONAL.filter(x=>x.id!==m.id);
+      savePersonalLocal();
+    } else {
+      DATA.mushrooms = DATA.mushrooms.filter(x=>x.id!==m.id);
+      await persist();
+    }
     resetTo({view:'list'});
     showToast('削除しました');
   });
@@ -521,7 +550,7 @@ function renderMushroomForm(existing){
     remainingSeconds:null, observedAt:null, crossMonth:false, targetCompleteAt:null,
     totalWorkPower:null, memo:'',
     participations:[], wildParticipations:[], joinCounter:0,
-    createdAt: Date.now()
+    createdAt: Date.now(), personal:false
   };
   if(draft.joinCounter==null){
     draft.joinCounter = Math.max(0, ...draft.participations.map(p=>p.joinOrder+1), ...draft.wildParticipations.map(w=>w.joinOrder+1), 0);
@@ -545,7 +574,7 @@ function renderMushroomForm(existing){
   }
 
   app.innerHTML = `<div class="page">
-    ${topbar(isNew?'キノコを登録':'参加状況を更新')}
+    ${topbar('キノコを登録')}
     <div class="content" id="formcontent">
       <div class="field">
         <label>キノコ名</label>
@@ -579,6 +608,13 @@ function renderMushroomForm(existing){
         <input type="number" id="f-power" value="${draft.totalWorkPower ?? ''}">
       </div>
 
+      <div class="field">
+        <div class="checkline">
+          <input type="checkbox" id="f-personal" ${draft.personal?'checked':''}>
+          <label style="margin:0;" for="f-personal">個人リストにする(この端末にのみ保存。他の人には見えません)</label>
+        </div>
+      </div>
+
       <div class="section-label">参加状況(固定アカウント)</div>
       <div id="acc-list">${DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>'}</div>
 
@@ -595,7 +631,7 @@ function renderMushroomForm(existing){
         <textarea id="f-memo">${draft.memo||''}</textarea>
       </div>
 
-      <button class="btn-primary" data-act="save" style="margin-top:6px;">${isNew?'登録する':'更新する'}</button>
+      <button class="btn-primary" data-act="save" style="margin-top:6px;">登録する</button>
     </div>
   </div>`;
 
@@ -668,20 +704,215 @@ function renderMushroomForm(existing){
     const powerVal = document.getElementById('f-power').value;
     draft.totalWorkPower = powerVal===''? null : Number(powerVal);
     draft.memo = document.getElementById('f-memo').value.trim();
+    draft.personal = document.getElementById('f-personal').checked;
     draft.wildParticipations = draft.wildParticipations.filter(w=>w.name.trim()!=='');
 
-    if(isNew){ DATA.mushrooms.push(draft); }
-    else{
+    if(draft.personal){
+      savePersonal(draft);
+    } else {
+      DATA.mushrooms.push(draft);
+      await persist();
+    }
+    const hIdx = DATA.nameHistory.findIndex(h=>h.title===title);
+    if(hIdx>=0) DATA.nameHistory[hIdx].lastUsedAt = Date.now();
+    else DATA.nameHistory.push({title, lastUsedAt: Date.now()});
+    if(!draft.personal) await persist();
+
+    showToast('登録しました');
+    resetTo({view:'detail', id:draft.id, personal:draft.personal});
+  });
+}
+
+/* ---- members-only update (does NOT touch remaining time / power) ---- */
+function renderMembersUpdateForm(mush, isPersonal){
+  const app = document.getElementById('app');
+  const draft = cloneObj(mush);
+  if(draft.joinCounter==null){
+    draft.joinCounter = Math.max(0, ...draft.participations.map(p=>p.joinOrder+1), ...draft.wildParticipations.map(w=>w.joinOrder+1), 0);
+  }
+  function accRowHtml(acc){
+    const p = draft.participations.find(x=>x.accountId===acc.id);
+    const on = !!p;
+    return `<div class="acc-row ${on?'on':''}" data-accrow="${acc.id}">
+      <div class="acc-name">${acc.displayName} <span class="tag ${acc.accountType==='sub'?'sub':''}">${acc.accountType==='main'?'メイン':'サブ'}</span></div>
+      ${on ? `<button class="mega-btn ${p.megaphone?'on':''}" data-mega="${acc.id}">📣${p.megaphone?'済':'未'}</button>`:''}
+      <button class="chip ${on?'selected':''}" data-toggleacc="${acc.id}">${on?'参加中':'参加'}</button>
+    </div>`;
+  }
+  app.innerHTML = `<div class="page">
+    ${topbar('メンバー・メガホンを更新')}
+    <div class="content">
+      <div class="section-label">参加状況(固定アカウント)</div>
+      <div id="acc-list">${DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。</div>'}</div>
+
+      <div class="section-label">野良参加者</div>
+      <div id="wild-list">${draft.wildParticipations.map(w=>`
+        <div class="wild-row" data-wildrow="${w.id}">
+          <input type="text" value="${w.name}" data-wildname="${w.id}">
+          <button class="iconbtn" data-wilddel="${w.id}">✕</button>
+        </div>`).join('')}</div>
+      <button class="btn-ghost" data-act="addwild">＋ 野良を追加</button>
+
+      <button class="btn-primary" data-act="save" style="margin-top:20px;">更新する</button>
+    </div>
+  </div>`;
+  app.querySelector('[data-act=back]').addEventListener('click', popView);
+
+  function refreshAccList(){
+    document.getElementById('acc-list').innerHTML = DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。</div>';
+    bindAccList();
+  }
+  function bindAccList(){
+    document.querySelectorAll('[data-toggleacc]').forEach(b=>b.addEventListener('click', ()=>{
+      const accId=b.dataset.toggleacc;
+      const idx = draft.participations.findIndex(p=>p.accountId===accId);
+      if(idx>=0){ draft.participations.splice(idx,1); }
+      else { draft.participations.push({accountId:accId, megaphone:false, joinOrder:draft.joinCounter++}); }
+      refreshAccList();
+    }));
+    document.querySelectorAll('[data-mega]').forEach(b=>b.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const p = draft.participations.find(p=>p.accountId===b.dataset.mega);
+      if(p){ p.megaphone=!p.megaphone; refreshAccList(); }
+    }));
+  }
+  bindAccList();
+
+  function refreshWildList(){
+    document.getElementById('wild-list').innerHTML = draft.wildParticipations.map(w=>`
+        <div class="wild-row" data-wildrow="${w.id}">
+          <input type="text" value="${w.name}" data-wildname="${w.id}">
+          <button class="iconbtn" data-wilddel="${w.id}">✕</button>
+        </div>`).join('');
+    bindWildList();
+  }
+  function bindWildList(){
+    document.querySelectorAll('[data-wildname]').forEach(inp=>inp.addEventListener('input', ()=>{
+      const w = draft.wildParticipations.find(w=>w.id===inp.dataset.wildname);
+      if(w) w.name = inp.value;
+    }));
+    document.querySelectorAll('[data-wilddel]').forEach(b=>b.addEventListener('click', ()=>{
+      draft.wildParticipations = draft.wildParticipations.filter(w=>w.id!==b.dataset.wilddel);
+      refreshWildList();
+    }));
+  }
+  bindWildList();
+  app.querySelector('[data-act=addwild]').addEventListener('click', ()=>{
+    draft.wildParticipations.push({id:uid(), name:'', joinOrder:draft.joinCounter++});
+    refreshWildList();
+  });
+
+  app.querySelector('[data-act=save]').addEventListener('click', async ()=>{
+    draft.wildParticipations = draft.wildParticipations.filter(w=>w.name.trim()!=='');
+    if(isPersonal){
+      savePersonal(draft);
+    } else {
       const idx = DATA.mushrooms.findIndex(m=>m.id===draft.id);
       DATA.mushrooms[idx] = draft;
+      await persist();
+    }
+    showToast('更新しました');
+    resetTo({view:'detail', id:draft.id, personal:isPersonal});
+  });
+}
+
+/* ---- time/power/detail update (does NOT touch members/megaphone) ---- */
+function renderTimeUpdateForm(mush, isPersonal){
+  const app = document.getElementById('app');
+  const draft = cloneObj(mush);
+  const nameHistorySorted = [...DATA.nameHistory].sort((a,b)=>b.lastUsedAt-a.lastUsedAt).slice(0,10);
+
+  // prefill with the live-computed remaining time so it reflects reality, not the stale stored value
+  let remD=0, remH=0, remM=0;
+  const liveExp = expectedCompleteAt(draft);
+  if(liveExp!=null){
+    const diff = Math.max(0, liveExp - Date.now());
+    const totalMin = Math.floor(diff/60000);
+    remD = Math.floor(totalMin/1440);
+    remH = Math.floor((totalMin%1440)/60);
+    remM = totalMin%60;
+  }
+
+  app.innerHTML = `<div class="page">
+    ${topbar('残り時間・おしごと力を更新')}
+    <div class="content">
+      <div class="field">
+        <label>キノコ名</label>
+        <input type="text" id="f-title" value="${draft.title||''}">
+        ${nameHistorySorted.length ? `<div class="chiprow" style="margin-top:8px;">${nameHistorySorted.map(h=>`<button class="chip" data-namepick="${encodeURIComponent(h.title)}">${h.title}</button>`).join('')}</div>`:''}
+      </div>
+      <div class="field">
+        <label>絵文字</label>
+        <div class="chiprow">${EMOJI_ORDER.map(e=>`<button class="chip emoji-chip ${draft.icon===e?'selected':''}" data-emoji="${e}">${e}</button>`).join('')}</div>
+      </div>
+      <div class="field">
+        <label>場所(任意)</label>
+        <input type="text" id="f-location" value="${draft.location||''}">
+      </div>
+      <div class="field">
+        <label>残り時間(現在の推定値を入れています。ゲーム内の実際の表示に合わせて修正してください)</label>
+        <div class="timeparts">
+          <div class="tp"><input type="number" min="0" id="f-remD" value="${remD||''}" placeholder="0"><span>日</span></div>
+          <div class="tp"><input type="number" min="0" id="f-remH" value="${remH||''}" placeholder="0"><span>時</span></div>
+          <div class="tp"><input type="number" min="0" id="f-remM" value="${remM||''}" placeholder="0"><span>分</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="checkline">
+          <input type="checkbox" id="f-crossmonth" ${draft.crossMonth?'checked':''}>
+          <label style="margin:0;" for="f-crossmonth">月跨ぎ用にする(保存時点の翌月1日0:00をボーダーにします)</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>総おしごと力</label>
+        <input type="number" id="f-power" value="${draft.totalWorkPower ?? ''}">
+      </div>
+      <div class="field">
+        <label>メモ(任意)</label>
+        <textarea id="f-memo">${draft.memo||''}</textarea>
+      </div>
+      <button class="btn-primary" data-act="save" style="margin-top:6px;">更新する</button>
+    </div>
+  </div>`;
+  app.querySelector('[data-act=back]').addEventListener('click', popView);
+  app.querySelectorAll('[data-emoji]').forEach(b=>b.addEventListener('click', ()=>{
+    draft.icon=b.dataset.emoji;
+    app.querySelectorAll('[data-emoji]').forEach(x=>x.classList.toggle('selected', x.dataset.emoji===draft.icon));
+  }));
+  app.querySelectorAll('[data-namepick]').forEach(b=>b.addEventListener('click', ()=>{
+    document.getElementById('f-title').value = decodeURIComponent(b.dataset.namepick);
+  }));
+
+  app.querySelector('[data-act=save]').addEventListener('click', async ()=>{
+    const title = document.getElementById('f-title').value.trim();
+    if(!title){ showToast('キノコ名を入力してください'); return; }
+    draft.title = title;
+    draft.location = document.getElementById('f-location').value.trim();
+    const d=parseInt(document.getElementById('f-remD').value)||0;
+    const h=parseInt(document.getElementById('f-remH').value)||0;
+    const mi=parseInt(document.getElementById('f-remM').value)||0;
+    const hasTime = document.getElementById('f-remD').value || document.getElementById('f-remH').value || document.getElementById('f-remM').value;
+    draft.remainingSeconds = hasTime ? (d*86400 + h*3600 + mi*60) : null;
+    draft.observedAt = Date.now();
+    draft.crossMonth = document.getElementById('f-crossmonth').checked;
+    draft.targetCompleteAt = draft.crossMonth ? nextMonthFirstMidnight(Date.now()) : null;
+    const powerVal = document.getElementById('f-power').value;
+    draft.totalWorkPower = powerVal===''? null : Number(powerVal);
+    draft.memo = document.getElementById('f-memo').value.trim();
+
+    if(isPersonal){
+      savePersonal(draft);
+    } else {
+      const idx = DATA.mushrooms.findIndex(m=>m.id===draft.id);
+      DATA.mushrooms[idx] = draft;
+      await persist();
     }
     const hIdx = DATA.nameHistory.findIndex(h=>h.title===title);
     if(hIdx>=0) DATA.nameHistory[hIdx].lastUsedAt = Date.now();
     else DATA.nameHistory.push({title, lastUsedAt: Date.now()});
 
-    await persist();
-    showToast(isNew?'登録しました':'更新しました');
-    resetTo({view:'detail', id:draft.id});
+    showToast('更新しました');
+    resetTo({view:'detail', id:draft.id, personal:isPersonal});
   });
 }
 
@@ -767,11 +998,17 @@ function render(){
   const v = currentView();
   if(v.view==='setup') return renderSetup();
   if(v.view==='list') return renderList();
-  if(v.view==='detail') return renderDetail(v.id);
+  if(v.view==='detail') return renderDetail(v.id, v.personal);
   if(v.view==='new') return renderMushroomForm(null);
-  if(v.view==='update'){
-    const m = DATA.mushrooms.find(x=>x.id===v.id);
-    return renderMushroomForm(m);
+  if(v.view==='update-members'){
+    const m = findMush(v.id, v.personal);
+    if(!m){ resetTo({view:'list'}); return; }
+    return renderMembersUpdateForm(m, v.personal);
+  }
+  if(v.view==='update-time'){
+    const m = findMush(v.id, v.personal);
+    if(!m){ resetTo({view:'list'}); return; }
+    return renderTimeUpdateForm(m, v.personal);
   }
   if(v.view==='settings') return renderSettings();
   if(v.view==='accedit') return renderAccEdit(v.id);
@@ -782,6 +1019,7 @@ function render(){
 async function boot(){
   loading = true; loadError = null;
   render();
+  PERSONAL = loadPersonalLocal();
   CONFIG = await loadConfig();
   if(!CONFIG || !CONFIG.masterKey || !CONFIG.binId){
     resetTo({view:'setup'});
