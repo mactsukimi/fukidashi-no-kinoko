@@ -235,6 +235,7 @@ function currentView(){ return viewStack[viewStack.length-1]; }
 function pushView(v){ viewStack.push(v); render(); window.scrollTo(0,0); }
 function popView(){ if(viewStack.length>1) viewStack.pop(); render(); window.scrollTo(0,0); }
 function resetTo(v){ viewStack=[v]; render(); window.scrollTo(0,0); }
+function goToDetail(id, personal){ viewStack=[{view:'list'}, {view:'detail', id, personal}]; render(); window.scrollTo(0,0); }
 
 function showToast(msg){
   clearTimeout(toastTimer);
@@ -430,7 +431,7 @@ function mushroomCardHtml(m, isPersonal){
       <div class="mc-title">${m.title}</div>
       <div class="mc-free">空き${freeLeft}</div>
     </div>
-    <div class="mc-row"><span>壊れ予定</span><span>${fmtDateTime(expectedCompleteAt(m))}</span></div>
+    <div class="mc-row"><span>壊れ予定</span><span>${fmtDateTime(expectedCompleteAt(m))}(残り${remainingLabel(m)})</span></div>
     <div class="mc-row"><span>総おしごと力</span><span>${m.totalWorkPower ?? '未設定'}</span></div>
     <div class="mc-participants">参加　${names}</div>
     ${unjoinedMains.length ? `<div class="mc-unjoined">未参加：${unjoinedMains.map(a=>a.displayName).join('・')}</div>` : ''}
@@ -719,7 +720,7 @@ function renderMushroomForm(existing){
     if(!draft.personal) await persist();
 
     showToast('登録しました');
-    resetTo({view:'detail', id:draft.id, personal:draft.personal});
+    goToDetail(draft.id, draft.personal);
   });
 }
 
@@ -812,7 +813,7 @@ function renderMembersUpdateForm(mush, isPersonal){
       await persist();
     }
     showToast('更新しました');
-    resetTo({view:'detail', id:draft.id, personal:isPersonal});
+    goToDetail(draft.id, isPersonal);
   });
 }
 
@@ -912,7 +913,7 @@ function renderTimeUpdateForm(mush, isPersonal){
     else DATA.nameHistory.push({title, lastUsedAt: Date.now()});
 
     showToast('更新しました');
-    resetTo({view:'detail', id:draft.id, personal:isPersonal});
+    goToDetail(draft.id, isPersonal);
   });
 }
 
