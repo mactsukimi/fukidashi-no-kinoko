@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>フキダシのキノコたち</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Mochiy+Pop+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --cream:#F8F2E4;
@@ -64,7 +64,7 @@
     box-shadow:0 1px 3px rgba(0,0,0,0.06);
   }
   .apptitle{
-    font-family:'Mochiy Pop One',sans-serif;
+    font-family:'M PLUS Rounded 1c',sans-serif;
     font-weight:600;
     font-size:19px;
     color:var(--green-dark);
@@ -97,11 +97,12 @@
   .mc-participants{font-size:13px;color:var(--text);}
   .mc-unjoined{font-size:12px;color:var(--orange);}
   .mc-toprow{display:flex;gap:8px;align-items:stretch;margin:8px 0 4px 0;}
-  .mc-stat-mini{background:var(--cream);border-radius:10px;padding:6px 9px;}
-  .mc-stat-half{flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .mc-stat-mini{flex:1;background:var(--cream);border-radius:10px;padding:6px 9px;display:flex;flex-direction:column;justify-content:center;min-width:0;}
+  .mc-stat-mini.mc-stat-yellow{background:var(--yellow);}
   .mc-stat-mini .k{font-size:10px;color:var(--text-soft);}
+  .mc-stat-mini.mc-stat-yellow .k{color:var(--text);}
   .mc-stat-mini .v{font-size:13px;font-weight:600;margin-top:1px;}
-  .mc-highlight{flex:1;background:var(--green-pale);border-radius:14px;padding:8px 12px;text-align:right;}
+  .mc-highlight{flex:1;background:var(--green-pale);border-radius:14px;padding:8px 10px;text-align:right;min-width:0;}
   .mc-highlight-label{font-size:10px;color:var(--green-dark);}
   .mc-highlight-time{font-size:15px;font-weight:700;color:var(--green-dark);margin-top:1px;}
   .mc-highlight-remain{font-size:12px;color:var(--green-dark);margin-top:1px;}
@@ -480,14 +481,14 @@ function mushroomCardHtml(m, isPersonal){
     <div class="mc-chiprow">${joinedChips}</div>
     ${unjoinedMains.length ? `<div class="mc-chiplabel">未参加メイン</div><div class="mc-chiprow">${unjoinedChips}</div>` : ''}
     <div class="mc-toprow">
-      <div class="mc-stat-mini mc-stat-half"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
+      <div class="mc-stat-mini"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
       <div class="mc-highlight">
-        <div class="mc-highlight-label">壊れ予定時刻</div>
+        <div class="mc-highlight-label">壊れ予定</div>
         <div class="mc-highlight-time">${fmtDateTime(expectedCompleteAt(m))}</div>
         <div class="mc-highlight-remain">あと${remainingLabelPrecise(m)}</div>
       </div>
+      ${border && !border.incomplete ? `<div class="mc-stat-mini mc-stat-yellow"><div class="k">増やせる猶予</div><div class="v">${border.borderMargin.toFixed(0)}</div></div>` : ''}
     </div>
-    ${border && !border.incomplete ? `<div class="mc-border-box">月跨ぎボーダーおしごと力: <b>${border.borderPower.toFixed(0)}</b>(あと増やせる猶予: ${border.borderMargin.toFixed(0)})</div>` : ''}
   </div>`;
 }
 function renderList(){
@@ -563,17 +564,15 @@ function renderDetail(id, isPersonal){
         <button class="btn-secondary" data-act="update-time" style="margin-top:14px;border-color:var(--orange);color:#a56a2e;">残り時間・おしごと力を更新</button>
       </div>
 
-      <div class="section-label">参加状況</div>
-      <div class="memo-box" style="margin-bottom:8px;padding:10px 12px;">
-        <div class="mc-chiprow">
-          ${sortedP.length ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('') : '<span class="hint">参加者はいません</span>'}
-        </div>
-        ${unjoinedMains.length ? `
-          <div class="mc-chiplabel" style="margin-top:6px;">未参加メイン(${unjoinedMains.length}人のうち${inCount}IN)</div>
-          <div class="mc-chiprow">${unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('')}</div>
-        ` : ''}
+      <div class="section-label" style="margin-bottom:6px;">参加状況</div>
+      <div class="mc-chiprow">
+        ${sortedP.length ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('') : '<span class="hint">参加者はいません</span>'}
       </div>
-      <button class="btn-secondary" data-act="update-members" style="margin-bottom:22px;">メンバー・メガホンを更新</button>
+      ${unjoinedMains.length ? `
+        <div class="mc-chiplabel">未参加メイン(${unjoinedMains.length}人のうち${inCount}IN)</div>
+        <div class="mc-chiprow">${unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('')}</div>
+      ` : ''}
+      <button class="btn-secondary" data-act="update-members" style="margin-top:14px;margin-bottom:22px;">メンバー・メガホンを更新</button>
 
       ${m.memo ? `<div class="section-label">メモ</div><div class="memo-box">${m.memo}</div>` : ''}
 
