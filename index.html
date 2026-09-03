@@ -96,16 +96,16 @@
   .mc-row{font-size:13px;color:var(--text-soft);display:flex;justify-content:space-between;}
   .mc-participants{font-size:13px;color:var(--text);}
   .mc-unjoined{font-size:12px;color:var(--orange);}
-  .mc-toprow{display:flex;gap:8px;align-items:stretch;margin:4px 0 8px 0;}
-  .mc-stats-mini{display:flex;flex-direction:column;gap:6px;width:96px;flex-shrink:0;}
+  .mc-toprow{display:flex;gap:8px;align-items:stretch;margin:8px 0 4px 0;}
   .mc-stat-mini{background:var(--cream);border-radius:10px;padding:6px 9px;}
+  .mc-stat-half{flex:1;display:flex;flex-direction:column;justify-content:center;}
   .mc-stat-mini .k{font-size:10px;color:var(--text-soft);}
   .mc-stat-mini .v{font-size:13px;font-weight:600;margin-top:1px;}
   .mc-highlight{flex:1;background:var(--green-pale);border-radius:14px;padding:8px 12px;text-align:right;}
   .mc-highlight-label{font-size:10px;color:var(--green-dark);}
   .mc-highlight-time{font-size:15px;font-weight:700;color:var(--green-dark);margin-top:1px;}
   .mc-highlight-remain{font-size:12px;color:var(--green-dark);margin-top:1px;}
-  .mc-highlight-border{font-size:10px;color:var(--green-dark);margin-top:4px;padding-top:4px;border-top:1px solid rgba(66,96,74,0.15);}
+  .mc-border-box{background:var(--yellow);color:var(--text);border-radius:10px;padding:7px 10px;font-size:11px;margin-top:6px;}
   .mc-chiplabel{font-size:11px;color:var(--text-soft);margin:6px 0 4px 0;}
   .mc-chiprow{display:flex;flex-wrap:wrap;gap:6px;}
   .mc-chip{font-size:12px;padding:4px 10px;border-radius:14px;}
@@ -476,21 +476,18 @@ function mushroomCardHtml(m, isPersonal){
       <div class="mc-title">${m.title}</div>
       <div class="mc-free">空き${freeLeft}</div>
     </div>
+    <div class="mc-chiplabel">参加</div>
+    <div class="mc-chiprow">${joinedChips}</div>
+    ${unjoinedMains.length ? `<div class="mc-chiplabel">未参加メイン</div><div class="mc-chiprow">${unjoinedChips}</div>` : ''}
     <div class="mc-toprow">
-      <div class="mc-stats-mini">
-        <div class="mc-stat-mini"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
-        <div class="mc-stat-mini"><div class="k">空き数</div><div class="v">${freeLeft}</div></div>
-      </div>
+      <div class="mc-stat-mini mc-stat-half"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
       <div class="mc-highlight">
         <div class="mc-highlight-label">壊れ予定時刻</div>
         <div class="mc-highlight-time">${fmtDateTime(expectedCompleteAt(m))}</div>
         <div class="mc-highlight-remain">あと${remainingLabelPrecise(m)}</div>
-        ${border && !border.incomplete ? `<div class="mc-highlight-border">月跨ぎボーダー: ${border.borderPower.toFixed(0)}(あと${border.borderMargin.toFixed(0)})</div>` : ''}
       </div>
     </div>
-    <div class="mc-chiplabel">参加</div>
-    <div class="mc-chiprow">${joinedChips}</div>
-    ${unjoinedMains.length ? `<div class="mc-chiplabel">未参加メイン</div><div class="mc-chiprow">${unjoinedChips}</div>` : ''}
+    ${border && !border.incomplete ? `<div class="mc-border-box">月跨ぎボーダーおしごと力: <b>${border.borderPower.toFixed(0)}</b>(あと増やせる猶予: ${border.borderMargin.toFixed(0)})</div>` : ''}
   </div>`;
 }
 function renderList(){
@@ -567,12 +564,12 @@ function renderDetail(id, isPersonal){
       </div>
 
       <div class="section-label">参加状況</div>
-      <div class="memo-box" style="margin-bottom:8px;">
+      <div class="memo-box" style="margin-bottom:8px;padding:10px 12px;">
         <div class="mc-chiprow">
           ${sortedP.length ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('') : '<span class="hint">参加者はいません</span>'}
         </div>
         ${unjoinedMains.length ? `
-          <div class="mc-chiplabel" style="margin-top:10px;">未参加メイン(${unjoinedMains.length}人のうち${inCount}IN)</div>
+          <div class="mc-chiplabel" style="margin-top:6px;">未参加メイン(${unjoinedMains.length}人のうち${inCount}IN)</div>
           <div class="mc-chiprow">${unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('')}</div>
         ` : ''}
       </div>
