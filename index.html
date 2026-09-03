@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>フキダシのキノコたち</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300;400;500;700&family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Mochiy+Pop+One&display=swap" rel="stylesheet">
 <style>
   :root{
     --cream:#F8F2E4;
@@ -26,7 +26,7 @@
     margin:0;
     background:var(--cream);
     color:var(--text);
-    font-family:'Zen Maru Gothic','Klee One',sans-serif;
+    font-family:'M PLUS Rounded 1c',sans-serif;
     font-weight:400;
     -webkit-font-smoothing:antialiased;
   }
@@ -64,7 +64,7 @@
     box-shadow:0 1px 3px rgba(0,0,0,0.06);
   }
   .apptitle{
-    font-family:'Klee One',sans-serif;
+    font-family:'Mochiy Pop One',sans-serif;
     font-weight:600;
     font-size:19px;
     color:var(--green-dark);
@@ -96,14 +96,16 @@
   .mc-row{font-size:13px;color:var(--text-soft);display:flex;justify-content:space-between;}
   .mc-participants{font-size:13px;color:var(--text);}
   .mc-unjoined{font-size:12px;color:var(--orange);}
-  .mc-highlight{background:var(--green-pale);border-radius:14px;padding:10px 14px;text-align:center;margin:4px 0 8px 0;}
-  .mc-highlight-label{font-size:11px;color:var(--green-dark);}
-  .mc-highlight-time{font-size:17px;font-weight:700;color:var(--green-dark);margin-top:2px;}
-  .mc-highlight-remain{font-size:13px;color:var(--green-dark);margin-top:2px;}
-  .mc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
-  .mc-stat{background:var(--cream);border-radius:10px;padding:7px 10px;}
-  .mc-stat .k{font-size:10px;color:var(--text-soft);}
-  .mc-stat .v{font-size:14px;font-weight:600;margin-top:1px;}
+  .mc-toprow{display:flex;gap:8px;align-items:stretch;margin:4px 0 8px 0;}
+  .mc-stats-mini{display:flex;flex-direction:column;gap:6px;width:96px;flex-shrink:0;}
+  .mc-stat-mini{background:var(--cream);border-radius:10px;padding:6px 9px;}
+  .mc-stat-mini .k{font-size:10px;color:var(--text-soft);}
+  .mc-stat-mini .v{font-size:13px;font-weight:600;margin-top:1px;}
+  .mc-highlight{flex:1;background:var(--green-pale);border-radius:14px;padding:8px 12px;text-align:right;}
+  .mc-highlight-label{font-size:10px;color:var(--green-dark);}
+  .mc-highlight-time{font-size:15px;font-weight:700;color:var(--green-dark);margin-top:1px;}
+  .mc-highlight-remain{font-size:12px;color:var(--green-dark);margin-top:1px;}
+  .mc-highlight-border{font-size:10px;color:var(--green-dark);margin-top:4px;padding-top:4px;border-top:1px solid rgba(66,96,74,0.15);}
   .mc-chiplabel{font-size:11px;color:var(--text-soft);margin:6px 0 4px 0;}
   .mc-chiprow{display:flex;flex-wrap:wrap;gap:6px;}
   .mc-chip{font-size:12px;padding:4px 10px;border-radius:14px;}
@@ -155,7 +157,7 @@
   .stat .k{font-size:11px;color:var(--green-dark);}
   .stat .v{font-size:15px;font-weight:600;margin-top:2px;}
   .memo-box{background:var(--card);border-radius:14px;padding:14px;font-size:13px;color:var(--text-soft);margin-bottom:14px;white-space:pre-wrap;}
-  .copybox{background:#2f2b24;color:#f2ead8;border-radius:14px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:'Klee One',monospace;margin-bottom:10px;}
+  .copybox{background:#2f2b24;color:#f2ead8;border-radius:14px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:'M PLUS Rounded 1c',monospace;margin-bottom:10px;}
   .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--green-dark);color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;z-index:50;box-shadow:0 4px 14px rgba(0,0,0,0.2);}
   .setup-wrap{padding:50px 24px;text-align:center;}
   .setup-wrap .apptitle{display:block;font-size:22px;margin-bottom:6px;}
@@ -280,6 +282,17 @@ function allParticipantsSorted(mush){
   ];
   items.sort((a,b)=>a.joinOrder-b.joinOrder);
   return items.map((it,idx)=>({...it, slot: idx<5 ? 'free':'ticket'}));
+}
+function orderedForDisplay(mush){
+  const sorted = allParticipantsSorted(mush);
+  const group = (it)=>{
+    if(it.type==='wild') return 4;
+    const acc = accountById(it.accountId);
+    const isMain = acc && acc.accountType==='main';
+    if(it.megaphone) return isMain?0:1;
+    return isMain?2:3;
+  };
+  return [...sorted].sort((a,b)=> group(a)-group(b) || a.joinOrder-b.joinOrder);
 }
 function freeSlotsRemaining(mush){
   const total = mush.participations.length + mush.wildParticipations.length;
@@ -449,27 +462,31 @@ function renderSetup(prefillError, prefillNotice){
 
 /* ===================== views ===================== */
 function mushroomCardHtml(m, isPersonal){
-  const sortedP = allParticipantsSorted(m);
+  const sortedP = orderedForDisplay(m);
   const {unjoinedMains} = computeInInfo(m);
   const freeLeft = freeSlotsRemaining(m);
   const joinedChips = sortedP.length
     ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account'&&p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('')
     : `<span class="hint">参加者なし</span>`;
   const unjoinedChips = unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('');
+  const border = m.crossMonth ? monthBorderInfo(m) : null;
   return `<div class="mushroom-card" data-open="${m.id}" data-personal="${isPersonal?'1':'0'}">
     <div class="mc-top">
       <div class="mc-icon">${m.icon}</div>
       <div class="mc-title">${m.title}</div>
       <div class="mc-free">空き${freeLeft}</div>
     </div>
-    <div class="mc-highlight">
-      <div class="mc-highlight-label">壊れ予定時刻</div>
-      <div class="mc-highlight-time">${fmtDateTime(expectedCompleteAt(m))}</div>
-      <div class="mc-highlight-remain">あと${remainingLabelPrecise(m)}</div>
-    </div>
-    <div class="mc-stats">
-      <div class="mc-stat"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
-      <div class="mc-stat"><div class="k">空き数</div><div class="v">${freeLeft}</div></div>
+    <div class="mc-toprow">
+      <div class="mc-stats-mini">
+        <div class="mc-stat-mini"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
+        <div class="mc-stat-mini"><div class="k">空き数</div><div class="v">${freeLeft}</div></div>
+      </div>
+      <div class="mc-highlight">
+        <div class="mc-highlight-label">壊れ予定時刻</div>
+        <div class="mc-highlight-time">${fmtDateTime(expectedCompleteAt(m))}</div>
+        <div class="mc-highlight-remain">あと${remainingLabelPrecise(m)}</div>
+        ${border && !border.incomplete ? `<div class="mc-highlight-border">月跨ぎボーダー: ${border.borderPower.toFixed(0)}(あと${border.borderMargin.toFixed(0)})</div>` : ''}
+      </div>
     </div>
     <div class="mc-chiplabel">参加</div>
     <div class="mc-chiprow">${joinedChips}</div>
@@ -525,7 +542,7 @@ function renderDetail(id, isPersonal){
   if(!m){ resetTo({view:'list'}); return; }
   const border = monthBorderInfo(m);
   const {unjoinedMains, inCount} = computeInInfo(m);
-  const sortedP = allParticipantsSorted(m);
+  const sortedP = orderedForDisplay(m);
   app.innerHTML = `<div class="page">
     ${topbar('キノコの詳細' + (isPersonal ? '(個人リスト)' : ''))}
     <div class="content">
