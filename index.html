@@ -26,7 +26,7 @@
     margin:0;
     background:var(--cream);
     color:var(--text);
-    font-family:'Klee One','Zen Maru Gothic',sans-serif;
+    font-family:'Zen Maru Gothic','Klee One',sans-serif;
     font-weight:400;
     -webkit-font-smoothing:antialiased;
   }
@@ -96,6 +96,19 @@
   .mc-row{font-size:13px;color:var(--text-soft);display:flex;justify-content:space-between;}
   .mc-participants{font-size:13px;color:var(--text);}
   .mc-unjoined{font-size:12px;color:var(--orange);}
+  .mc-highlight{background:var(--green-pale);border-radius:14px;padding:10px 14px;text-align:center;margin:4px 0 8px 0;}
+  .mc-highlight-label{font-size:11px;color:var(--green-dark);}
+  .mc-highlight-time{font-size:17px;font-weight:700;color:var(--green-dark);margin-top:2px;}
+  .mc-highlight-remain{font-size:13px;color:var(--green-dark);margin-top:2px;}
+  .mc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+  .mc-stat{background:var(--cream);border-radius:10px;padding:7px 10px;}
+  .mc-stat .k{font-size:10px;color:var(--text-soft);}
+  .mc-stat .v{font-size:14px;font-weight:600;margin-top:1px;}
+  .mc-chiplabel{font-size:11px;color:var(--text-soft);margin:6px 0 4px 0;}
+  .mc-chiprow{display:flex;flex-wrap:wrap;gap:6px;}
+  .mc-chip{font-size:12px;padding:4px 10px;border-radius:14px;}
+  .mc-chip.joined{background:var(--yellow);color:var(--text);}
+  .mc-chip.unjoined{background:#fff;border:1.5px solid var(--orange);color:var(--orange);}
   .empty-state, .loading-state{text-align:center;color:var(--text-soft);margin-top:60px;font-size:14px;}
   .error-state{text-align:center;color:var(--danger);margin-top:60px;font-size:13px;padding:0 20px;}
   .spinner{width:26px;height:26px;margin:0 auto 12px auto;border-radius:50%;border:3px solid var(--green-pale);border-top-color:var(--green);animation:spin 0.8s linear infinite;}
@@ -308,6 +321,21 @@ function remainingLabel(mush){
   if(h>0) return `${h}時間${m}分`;
   return `${m}分`;
 }
+function remainingLabelPrecise(mush){
+  if(mush.remainingSeconds==null) return '未設定';
+  const exp = expectedCompleteAt(mush);
+  const diff = exp - Date.now();
+  if(diff<=0) return 'まもなく壊れる';
+  const totalMin = Math.floor(diff/60000);
+  const d = Math.floor(totalMin/1440);
+  const h = Math.floor((totalMin%1440)/60);
+  const m = totalMin%60;
+  let out = '';
+  if(d>0) out += `${d}日`;
+  if(d>0 || h>0) out += `${h}時間`;
+  out += `${m}分`;
+  return out;
+}
 function monthBorderInfo(mush){
   if(!mush.crossMonth || !mush.targetCompleteAt) return null;
   if(mush.totalWorkPower==null || mush.remainingSeconds==null) return {incomplete:true};
@@ -422,19 +450,30 @@ function renderSetup(prefillError, prefillNotice){
 /* ===================== views ===================== */
 function mushroomCardHtml(m, isPersonal){
   const sortedP = allParticipantsSorted(m);
-  const names = sortedP.map(nameToken).join('・') || '(参加者なし)';
   const {unjoinedMains} = computeInInfo(m);
   const freeLeft = freeSlotsRemaining(m);
+  const joinedChips = sortedP.length
+    ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account'&&p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('')
+    : `<span class="hint">参加者なし</span>`;
+  const unjoinedChips = unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('');
   return `<div class="mushroom-card" data-open="${m.id}" data-personal="${isPersonal?'1':'0'}">
     <div class="mc-top">
       <div class="mc-icon">${m.icon}</div>
       <div class="mc-title">${m.title}</div>
       <div class="mc-free">空き${freeLeft}</div>
     </div>
-    <div class="mc-row"><span>壊れ予定</span><span>${fmtDateTime(expectedCompleteAt(m))}(残り${remainingLabel(m)})</span></div>
-    <div class="mc-row"><span>総おしごと力</span><span>${m.totalWorkPower ?? '未設定'}</span></div>
-    <div class="mc-participants">参加　${names}</div>
-    ${unjoinedMains.length ? `<div class="mc-unjoined">未参加：${unjoinedMains.map(a=>a.displayName).join('・')}</div>` : ''}
+    <div class="mc-highlight">
+      <div class="mc-highlight-label">壊れ予定時刻</div>
+      <div class="mc-highlight-time">${fmtDateTime(expectedCompleteAt(m))}</div>
+      <div class="mc-highlight-remain">あと${remainingLabelPrecise(m)}</div>
+    </div>
+    <div class="mc-stats">
+      <div class="mc-stat"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
+      <div class="mc-stat"><div class="k">空き数</div><div class="v">${freeLeft}</div></div>
+    </div>
+    <div class="mc-chiplabel">参加</div>
+    <div class="mc-chiprow">${joinedChips}</div>
+    ${unjoinedMains.length ? `<div class="mc-chiplabel">未参加メイン</div><div class="mc-chiprow">${unjoinedChips}</div>` : ''}
   </div>`;
 }
 function renderList(){
@@ -496,32 +535,36 @@ function renderDetail(id, isPersonal){
         <div class="loc">${m.location || '場所未設定'}</div>
         <div class="statgrid">
           <div class="stat"><div class="k">総おしごと力</div><div class="v">${m.totalWorkPower ?? '未設定'}</div></div>
-          <div class="stat"><div class="k">残り時間</div><div class="v">${remainingLabel(m)}</div></div>
+          <div class="stat"><div class="k">残り時間</div><div class="v">${remainingLabelPrecise(m)}</div></div>
           <div class="stat"><div class="k">壊れ予定</div><div class="v">${fmtDateTime(expectedCompleteAt(m))}</div></div>
           <div class="stat"><div class="k">無料枠の空き</div><div class="v">${freeSlotsRemaining(m)}</div></div>
         </div>
         ${m.crossMonth ? `<div class="stat" style="margin-top:10px;">
           <div class="k">月跨ぎ(希望日0:00まで)</div>
           ${border && !border.incomplete ? `
-            <div class="v">ボーダー時刻: ${fmtDateTime(border.targetCompleteAt)}</div>
             <div style="font-size:13px;margin-top:4px;">ボーダーおしごと力: <b>${border.borderPower.toFixed(0)}</b></div>
-            <div style="font-size:13px;">ボーダー猶予: <b>${border.borderMargin.toFixed(0)}</b></div>
+            <div style="font-size:13px;">あと増やせる猶予: <b>${border.borderMargin.toFixed(0)}</b></div>
           ` : `<div class="hint">計算に必要な項目(総おしごと力・残り時間)が未設定です</div>`}
         </div>` : ''}
+        <button class="btn-secondary" data-act="update-time" style="margin-top:14px;border-color:var(--orange);color:#a56a2e;">残り時間・おしごと力を更新</button>
       </div>
 
       <div class="section-label">参加状況</div>
-      <div class="memo-box" style="margin-bottom:14px;">
-        ${sortedP.length ? sortedP.map(p=>`${p.slot==='ticket'?'🎫':''}${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}`).join('　') : '参加者はいません'}
-        ${unjoinedMains.length ? `<div style="margin-top:8px;color:var(--orange);">未参加メイン: ${unjoinedMains.map(a=>a.displayName).join('・')}(${inCount}IN可)</div>`:''}
+      <div class="memo-box" style="margin-bottom:8px;">
+        <div class="mc-chiprow">
+          ${sortedP.length ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('') : '<span class="hint">参加者はいません</span>'}
+        </div>
+        ${unjoinedMains.length ? `
+          <div class="mc-chiplabel" style="margin-top:10px;">未参加メイン(${unjoinedMains.length}人のうち${inCount}IN)</div>
+          <div class="mc-chiprow">${unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('')}</div>
+        ` : ''}
       </div>
+      <button class="btn-secondary" data-act="update-members" style="margin-bottom:22px;">メンバー・メガホンを更新</button>
 
       ${m.memo ? `<div class="section-label">メモ</div><div class="memo-box">${m.memo}</div>` : ''}
 
-      <button class="btn-secondary" data-act="copy" style="margin-bottom:22px;">定型コピーをコピー</button>
+      <button class="btn-primary" data-act="copy" style="margin-bottom:22px;">定型コピーをコピー</button>
 
-      <button class="btn-primary" data-act="update-members" style="margin-bottom:10px;">メンバー・メガホンを更新</button>
-      <button class="btn-primary" data-act="update-time" style="margin-bottom:10px;background:var(--orange);box-shadow:0 4px 14px rgba(233,168,104,0.28);">残り時間・おしごと力を更新</button>
       <button class="btn-danger" data-act="delete">キノコを削除</button>
     </div>
   </div>`;
@@ -720,7 +763,7 @@ function renderMushroomForm(existing){
     if(!draft.personal) await persist();
 
     showToast('登録しました');
-    goToDetail(draft.id, draft.personal);
+    resetTo({view:'list'});
   });
 }
 
