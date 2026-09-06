@@ -317,7 +317,8 @@ function computeInInfo(mush){
 function fmtDateTime(ts){
   if(!ts) return '未設定';
   const d = new Date(ts);
-  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const w = ['日','月','火','水','木','金','土'][d.getDay()];
+  return `${d.getMonth()+1}/${d.getDate()}(${w}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function expectedCompleteAt(mush){
   if(mush.observedAt==null || mush.remainingSeconds==null) return null;
