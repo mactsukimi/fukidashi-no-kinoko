@@ -300,6 +300,10 @@ function freeSlotsRemaining(mush){
   return Math.max(0, 5-total);
 }
 function accountById(id){ return DATA.accounts.find(a=>a.id===id); }
+function selectableAccounts(draft, isPersonal){
+  if(isPersonal) return DATA.accounts;
+  return DATA.accounts.filter(a => !a.archived || draft.participations.some(p=>p.accountId===a.id));
+}
 
 function computeInInfo(mush){
   const sorted = allParticipantsSorted(mush);
@@ -308,7 +312,7 @@ function computeInInfo(mush){
   const residual = mains.length + wilds.length;
   const freeAfterSubOut = Math.max(0, 5-residual);
   const joinedMainIds = mains.map(m=>m.accountId);
-  const unjoinedMains = DATA.accounts.filter(a=>a.accountType==='main' && !joinedMainIds.includes(a.id));
+  const unjoinedMains = DATA.accounts.filter(a=>a.accountType==='main' && !a.archived && !joinedMainIds.includes(a.id));
   const inCount = Math.min(freeAfterSubOut, unjoinedMains.length);
   const subs = sorted.filter(it=>it.type==='account' && accountById(it.accountId) && accountById(it.accountId).accountType==='sub');
   return { subs, unjoinedMains, inCount };
@@ -390,9 +394,15 @@ function buildMushroomCopy(mush){
   const line2 = buildLine2(mush);
   const line3 = fmtDateTime(expectedCompleteAt(mush));
   const {subs, unjoinedMains, inCount} = computeInInfo(mush);
-  const line4 = subs.map(nameToken).join('') + 'OUT';
-  const line5 = unjoinedMains.map(a=>a.displayName).join('') + `の中から${inCount}IN`;
-  return [line1,line2,line3,line4,line5].join('\n');
+  const lines = [line1, line2, line3];
+  if(subs.length > 0){
+    const line4 = subs.map(nameToken).join('') + 'OUT';
+    const line5 = (unjoinedMains.length === inCount)
+      ? `${inCount}IN`
+      : unjoinedMains.map(a=>a.displayName).join('') + `の中から${inCount}IN`;
+    lines.push(line4, line5);
+  }
+  return lines.join('\n');
 }
 function buildAllCopy(){
   const sorted = [...DATA.mushrooms].sort((a,b)=>(expectedCompleteAt(a)||Infinity)-(expectedCompleteAt(b)||Infinity));
@@ -573,7 +583,7 @@ function renderDetail(id, isPersonal){
         ${sortedP.length ? sortedP.map(p=>`<span class="mc-chip joined">${nameToken(p)}${p.type==='account' && p.megaphone?' 📣':''}${p.slot==='ticket'?' 🎫':''}</span>`).join('') : '<span class="hint">参加者はいません</span>'}
       </div>
       ${unjoinedMains.length ? `
-        <div class="mc-chiplabel">未参加メイン(${unjoinedMains.length}人のうち${inCount}IN)</div>
+        <div class="mc-chiplabel">未参加メイン(${unjoinedMains.length===inCount ? `${inCount}IN` : `${unjoinedMains.length}人のうち${inCount}IN`})</div>
         <div class="mc-chiprow">${unjoinedMains.map(a=>`<span class="mc-chip unjoined">${a.displayName}</span>`).join('')}</div>
       ` : ''}
       <button class="btn-secondary" data-act="update-members" style="margin-top:14px;margin-bottom:22px;">メンバー・メガホンを更新</button>
@@ -677,7 +687,7 @@ function renderMushroomForm(existing){
       </div>
 
       <div class="section-label">参加状況(固定アカウント)</div>
-      <div id="acc-list">${DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>'}</div>
+      <div id="acc-list">${selectableAccounts(draft, draft.personal).map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>'}</div>
 
       <div class="section-label">野良参加者</div>
       <div id="wild-list">${draft.wildParticipations.map(w=>`
@@ -706,9 +716,11 @@ function renderMushroomForm(existing){
   }));
 
   function refreshAccList(){
-    document.getElementById('acc-list').innerHTML = DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>';
+    const isPersonalNow = document.getElementById('f-personal').checked;
+    document.getElementById('acc-list').innerHTML = selectableAccounts(draft, isPersonalNow).map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。設定から登録してください。</div>';
     bindAccList();
   }
+  document.getElementById('f-personal').addEventListener('change', refreshAccList);
   function bindAccList(){
     document.querySelectorAll('[data-toggleacc]').forEach(b=>b.addEventListener('click', ()=>{
       const accId=b.dataset.toggleacc;
@@ -804,7 +816,7 @@ function renderMembersUpdateForm(mush, isPersonal){
     ${topbar('メンバー・メガホンを更新')}
     <div class="content">
       <div class="section-label">参加状況(固定アカウント)</div>
-      <div id="acc-list">${DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。</div>'}</div>
+      <div id="acc-list">${selectableAccounts(draft, isPersonal).map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。</div>'}</div>
 
       <div class="section-label">野良参加者</div>
       <div id="wild-list">${draft.wildParticipations.map(w=>`
@@ -820,7 +832,7 @@ function renderMembersUpdateForm(mush, isPersonal){
   app.querySelector('[data-act=back]').addEventListener('click', popView);
 
   function refreshAccList(){
-    document.getElementById('acc-list').innerHTML = DATA.accounts.map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。</div>';
+    document.getElementById('acc-list').innerHTML = selectableAccounts(draft, isPersonal).map(accRowHtml).join('') || '<div class="hint">アカウント未登録です。</div>';
     bindAccList();
   }
   function bindAccList(){
@@ -983,10 +995,10 @@ function renderSettings(){
     ${topbar('設定')}
     <div class="content">
       <div class="section-label">固定アカウント</div>
-      <div class="hint" style="margin-bottom:10px;">キノコ登録で選ぶアカウントを登録します。</div>
+      <div class="hint" style="margin-bottom:10px;">キノコ登録で選ぶアカウントを登録します。非表示にしたアカウントは選択肢に出なくなりますが、データは消えません。</div>
       <div id="acc-settings-list">${DATA.accounts.map(a=>`
-        <div class="acc-row" data-accedit="${a.id}">
-          <div class="acc-name">${a.displayName} <span class="tag ${a.accountType==='sub'?'sub':''}">${a.accountType==='main'?'メイン':'サブ'}</span></div>
+        <div class="acc-row" data-accedit="${a.id}" style="${a.archived?'opacity:0.5;':''}">
+          <div class="acc-name">${a.displayName} <span class="tag ${a.accountType==='sub'?'sub':''}">${a.accountType==='main'?'メイン':'サブ'}</span>${a.archived?' <span class="hint">(非表示)</span>':''}</div>
           <button class="btn-ghost" data-editbtn="${a.id}">編集</button>
         </div>`).join('') || '<div class="hint">まだ登録がありません</div>'}</div>
       <button class="btn-secondary" data-act="addacc" style="margin-bottom:26px;">＋ アカウントを追加</button>
@@ -1026,6 +1038,13 @@ function renderAccEdit(id){
           <button class="chip ${existing&&existing.accountType==='sub'?'selected':''}" data-type="sub">サブ</button>
         </div>
       </div>
+      ${existing ? `
+      <div class="field">
+        <div class="checkline">
+          <input type="checkbox" id="f-archived" ${existing.archived?'checked':''}>
+          <label style="margin:0;" for="f-archived">選択肢から外す(非表示にする。データは消えません)</label>
+        </div>
+      </div>` : ''}
       <button class="btn-primary" data-act="save" style="margin-top:10px;">保存する</button>
       ${existing ? `<button class="btn-danger" data-act="del" style="margin-top:10px;">このアカウントを削除</button>`:''}
     </div>
@@ -1039,8 +1058,9 @@ function renderAccEdit(id){
   app.querySelector('[data-act=save]').addEventListener('click', async ()=>{
     const name = document.getElementById('f-accname').value.trim();
     if(!name){ showToast('名前を入力してください'); return; }
-    if(existing){ existing.displayName = name; existing.accountType = type; }
-    else{ DATA.accounts.push({id:uid(), displayName:name, accountType:type}); }
+    const archived = existing ? document.getElementById('f-archived').checked : false;
+    if(existing){ existing.displayName = name; existing.accountType = type; existing.archived = archived; }
+    else{ DATA.accounts.push({id:uid(), displayName:name, accountType:type, archived:false}); }
     await persist();
     showToast('保存しました');
     popView();
