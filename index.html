@@ -398,7 +398,7 @@ function buildMushroomCopy(mush){
   if(subs.length > 0){
     const line4 = subs.map(nameToken).join('') + 'OUT';
     const line5 = (unjoinedMains.length === inCount)
-      ? `${inCount}IN`
+      ? unjoinedMains.map(a=>a.displayName).join('') + 'IN'
       : unjoinedMains.map(a=>a.displayName).join('') + `の中から${inCount}IN`;
     lines.push(line4, line5);
   }
