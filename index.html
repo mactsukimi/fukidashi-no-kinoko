@@ -401,12 +401,19 @@ function buildMushroomCopy(mush){
       ? unjoinedMains.map(a=>a.displayName).join('') + 'IN'
       : unjoinedMains.map(a=>a.displayName).join('') + `の中から${inCount}IN`;
     lines.push(line4, line5);
+  } else {
+    lines.push('追いのみ');
   }
   return lines.join('\n');
 }
-function buildAllCopy(){
+function hasSwap(mush){
+  const {subs} = computeInInfo(mush);
+  return subs.length > 0;
+}
+function buildAllCopy(filterFn){
   const sorted = [...DATA.mushrooms].sort((a,b)=>(expectedCompleteAt(a)||Infinity)-(expectedCompleteAt(b)||Infinity));
-  return sorted.map(buildMushroomCopy).join('\n\n');
+  const target = filterFn ? sorted.filter(filterFn) : sorted;
+  return target.map(buildMushroomCopy).join('\n\n');
 }
 function copyToClipboard(text){
   try{
@@ -525,7 +532,11 @@ function renderList(){
       <div class="apptitle">⸜\\ フキダシのキノコたち /⸝</div>
     </div>
     <div class="content">
-      ${(!loading && !loadError && DATA.mushrooms.length>0) ? `<div style="text-align:right;margin-bottom:8px;"><button class="btn-ghost" data-act="copy-all">全キノコをコピー</button></div>`:''}
+      ${(!loading && !loadError && DATA.mushrooms.length>0) ? `<div style="text-align:right;margin-bottom:8px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn-ghost" data-act="copy-all">全部コピー</button>
+        <button class="btn-ghost" data-act="copy-swap">IN OUT有りのみ</button>
+        <button class="btn-ghost" data-act="copy-nonswap">追いのみコピー</button>
+      </div>`:''}
       ${sharedBody}
       ${!loading && !loadError ? `
         <div class="section-label">個人リスト(この端末だけ・他の人には見えません)</div>
@@ -542,6 +553,10 @@ function renderList(){
   });
   const cb = app.querySelector('[data-act=copy-all]');
   if(cb) cb.addEventListener('click', ()=> copyToClipboard(buildAllCopy()));
+  const cbs = app.querySelector('[data-act=copy-swap]');
+  if(cbs) cbs.addEventListener('click', ()=> copyToClipboard(buildAllCopy(hasSwap)));
+  const cbn = app.querySelector('[data-act=copy-nonswap]');
+  if(cbn) cbn.addEventListener('click', ()=> copyToClipboard(buildAllCopy(m=>!hasSwap(m))));
   const rt = app.querySelector('[data-act=retry]');
   if(rt) rt.addEventListener('click', ()=> boot());
   app.querySelector('[data-act=settings]').addEventListener('click', ()=> pushView({view:'settings'}));
